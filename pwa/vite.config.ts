@@ -8,11 +8,9 @@ const BASE = '/pwa-pwa-equipo1/'
 export default defineConfig({
   base: BASE,
 
-  // Build output goes to /docs at the repo root so GitHub Pages can serve it
-  // directly (Settings → Pages → Deploy from a branch → main → /docs).
   build: {
-    outDir: '../docs',
-    emptyOutDir: true,
+    outDir: '..',
+    emptyOutDir: false,
   },
 
   plugins: [
