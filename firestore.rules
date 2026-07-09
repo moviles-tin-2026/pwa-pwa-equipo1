@@ -1,0 +1,77 @@
+rules_version = '2';
+
+// Reglas de seguridad PyME-Sync — matriz RBAC del documento de diseño.
+//
+// Roles: el documento users/{uid} tiene role: 'admin' | 'operator'.
+// - Admin:    CRUD completo de catálogos, usuarios y cancelación de folios.
+// - Operador: consulta catálogos, registra movimientos y ventas (solo
+//             puede modificar el campo stock de productos, nunca precios).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.role == 'admin';
+    }
+
+    // Solo cambió el campo stock (ajustes del operador por venta/movimiento).
+    function onlyStockChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['stock']);
+    }
+
+    match /users/{userId} {
+      // Cada quien lee su perfil; el admin lee y administra todos.
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // Primer login: el usuario crea su propio perfil como operador.
+      allow create: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == userId
+            && request.resource.data.role == 'operator');
+      allow update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if signedIn();
+      // Operador: solo ajuste de stock (venta o movimiento justificado).
+      allow update: if isAdmin() || (signedIn() && onlyStockChanged());
+      allow create, delete: if isAdmin();
+    }
+
+    match /movements/{movementId} {
+      allow read: if signedIn();
+      // Bitácora de auditoría: se crea pero no se edita ni borra.
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /sales/{saleId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      // Cancelación de folios: solo Admin y solo el campo cancelled.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['cancelled']);
+      allow delete: if false;
+    }
+
+    match /meta/{docId} {
+      // Contador de folios: lo actualiza la transacción de venta.
+      allow read, write: if signedIn();
+    }
+  }
+}
