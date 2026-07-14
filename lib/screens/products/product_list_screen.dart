@@ -14,8 +14,8 @@ import 'product_form_screen.dart';
 /// Módulo 2 — Lista de Productos (Ambos roles).
 ///
 /// Buscador reactivo, filtros por categoría y estado de stock.
-/// El Operador solo consulta; el Admin ve acciones de edición/eliminación,
-/// el alta de productos y la gestión de categorías (matriz RBAC).
+/// Ambos roles pueden dar de alta productos nuevos. Solo el Admin edita,
+/// elimina y gestiona categorías (matriz RBAC).
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
 
@@ -55,17 +55,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: isAdmin
-          ? FloatingActionButton.extended(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ProductFormScreen(),
-                ),
-              ),
-              icon: const Icon(Icons.add),
-              label: const Text('Nuevo producto'),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const ProductFormScreen(),
+          ),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo producto'),
+      ),
       body: PageContainer(
         child: Column(
           children: [

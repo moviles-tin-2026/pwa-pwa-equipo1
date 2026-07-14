@@ -37,29 +37,28 @@ class PymeSyncApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AuthService(),
-      child: MaterialApp(
-        title: 'AURA VITAE · PymeSync',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        home: const AuthGate(),
-      ),
+      child: const _PymeSyncRoot(),
     );
   }
 }
 
-/// Redirige según el estado de sesión:
-/// - Sin sesión: pantalla de Login.
-/// - Con sesión: shell principal con el menú filtrado por rol, inyectando
-///   el repositorio adecuado (Firestore para cuentas reales, local para
-///   las cuentas demo).
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+/// Raíz con [MaterialApp] debajo de los providers de sesión para que las
+/// rutas empujadas (formularios, etc.) sigan teniendo acceso al repositorio.
+class _PymeSyncRoot extends StatelessWidget {
+  const _PymeSyncRoot();
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
 
-    if (!auth.isLoggedIn) return const LoginScreen();
+    final app = MaterialApp(
+      title: 'AURA VITAE · PymeSync',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      home: auth.isLoggedIn ? const AppShell() : const LoginScreen(),
+    );
+
+    if (!auth.isLoggedIn) return app;
 
     return ChangeNotifierProvider<InventoryRepository>(
       // key fuerza un repositorio nuevo al cambiar de usuario/modo.
@@ -67,7 +66,7 @@ class AuthGate extends StatelessWidget {
       create: (_) => auth.isDemoSession
           ? LocalInventoryRepository()
           : FirestoreInventoryRepository(),
-      child: const AppShell(),
+      child: app,
     );
   }
 }

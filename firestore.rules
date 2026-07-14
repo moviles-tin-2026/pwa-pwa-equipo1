@@ -4,8 +4,9 @@ rules_version = '2';
 //
 // Roles: el documento users/{uid} tiene role: 'admin' | 'operator'.
 // - Admin:    CRUD completo de catálogos, usuarios y cancelación de folios.
-// - Operador: consulta catálogos, registra movimientos y ventas (solo
-//             puede modificar el campo stock de productos, nunca precios).
+// - Operador: consulta catálogos, da de alta productos nuevos, registra
+//             movimientos y ventas (solo puede modificar stock en
+//             productos existentes, nunca precios ni catálogo).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -47,9 +48,10 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if signedIn();
-      // Operador: solo ajuste de stock (venta o movimiento justificado).
+      // Operador: alta de productos; en existentes solo ajuste de stock.
+      allow create: if signedIn();
       allow update: if isAdmin() || (signedIn() && onlyStockChanged());
-      allow create, delete: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /movements/{movementId} {
