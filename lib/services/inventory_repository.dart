@@ -142,6 +142,7 @@ abstract class InventoryRepository extends ChangeNotifier {
     required int stock,
     required int minStock,
     required int maxStock,
+    String imageUrl = '',
   });
 
   Future<void> updateProduct(Product updated);
@@ -232,6 +233,7 @@ class LocalInventoryRepository extends InventoryRepository {
     required int stock,
     required int minStock,
     required int maxStock,
+    String imageUrl = '',
   }) async {
     productsCache.add(Product(
       id: _nextId(),
@@ -243,6 +245,7 @@ class LocalInventoryRepository extends InventoryRepository {
       stock: stock,
       minStock: minStock,
       maxStock: maxStock,
+      imageUrl: imageUrl,
     ));
     notifyListeners();
   }
