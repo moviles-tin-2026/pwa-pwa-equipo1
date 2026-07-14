@@ -38,7 +38,7 @@ class PymeSyncApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => AuthService(),
       child: MaterialApp(
-        title: 'PyME-Sync',
+        title: 'AURA VITAE · PymeSync',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         home: const AuthGate(),
