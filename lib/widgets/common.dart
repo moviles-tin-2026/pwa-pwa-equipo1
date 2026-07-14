@@ -91,17 +91,28 @@ class ProductImage extends StatelessWidget {
     required this.imageUrl,
     this.size = 44,
     this.borderRadius = 10,
+    this.width,
+    this.height,
   });
 
   final String imageUrl;
   final double size;
   final double borderRadius;
 
+  /// Anulan [size] cuando la imagen no es cuadrada
+  /// (p. ej. ancho completo de una tarjeta). `double.infinity` es válido.
+  final double? width;
+  final double? height;
+
   @override
   Widget build(BuildContext context) {
+    final w = width ?? size;
+    final h = height ?? size;
+    final iconSize = (h.isFinite ? h : size) * 0.5;
+
     final fallback = Container(
-      width: size,
-      height: size,
+      width: w,
+      height: h,
       decoration: BoxDecoration(
         color: AppTheme.brandNavy.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(borderRadius),
@@ -109,7 +120,7 @@ class ProductImage extends StatelessWidget {
       child: Icon(
         Icons.inventory_2_outlined,
         color: AppTheme.brandNavy,
-        size: size * 0.5,
+        size: iconSize,
       ),
     );
 
@@ -119,8 +130,8 @@ class ProductImage extends StatelessWidget {
       borderRadius: BorderRadius.circular(borderRadius),
       child: Image.network(
         imageUrl.trim(),
-        width: size,
-        height: size,
+        width: w,
+        height: h,
         fit: BoxFit.cover,
         webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
         loadingBuilder: (context, child, progress) =>
