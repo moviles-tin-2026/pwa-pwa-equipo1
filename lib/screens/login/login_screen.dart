@@ -20,7 +20,7 @@ class LoginScreen extends StatelessWidget {
     final isWide = MediaQuery.sizeOf(context).width >= Breakpoints.tablet;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppTheme.almond,
       body: isWide
           ? Row(
               children: [
@@ -70,7 +70,7 @@ class _BrandPanel extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.brandNavy, Color(0xFF2C5282)],
+          colors: [AppTheme.merlot, Color(0xFF7A4A50)],
         ),
       ),
       child: Center(
@@ -87,26 +87,38 @@ class _BrandPanel extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Icon(
-                  Icons.inventory_2_outlined,
-                  size: 56,
+                  Icons.auto_awesome,
+                  size: 52,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 32),
               const Text(
-                'PyME-Sync',
+                'AURA VITAE',
                 style: TextStyle(
+                  fontFamily: 'Montserrat',
                   color: Colors.white,
-                  fontSize: 40,
+                  fontSize: 32,
                   fontWeight: FontWeight.w800,
+                  letterSpacing: 0.14,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
-                'Control de inventarios y ventas\nsincronizado en la nube.',
+                'PymeSync · Skincare Management',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 18,
+                  fontFamily: 'Inter',
+                  color: Colors.white.withValues(alpha: 0.80),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Gestión inteligente para tu\nnegocio de skincare.',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Colors.white.withValues(alpha: 0.80),
+                  fontSize: 16,
                   height: 1.5,
                 ),
               ),
@@ -121,9 +133,9 @@ class _BrandPanel extends StatelessWidget {
                   child: Row(
                     children: [
                       const Icon(
-                        Icons.check_circle_outline,
+                        Icons.spa_outlined,
                         color: Colors.white70,
-                        size: 20,
+                        size: 18,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -155,31 +167,45 @@ class _BrandHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.brandNavy.withValues(alpha: 0.1),
+            color: AppTheme.merlot,
             borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.merlot.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: const Icon(
-            Icons.inventory_2_outlined,
-            size: 44,
-            color: AppTheme.brandNavy,
+            Icons.auto_awesome,
+            size: 40,
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 16),
         const Text(
-          'Bienvenido a PyME-Sync',
+          'AURA VITAE',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 26,
+            fontFamily: 'Montserrat',
+            fontSize: 24,
             fontWeight: FontWeight.w800,
-            color: AppTheme.brandNavy,
+            letterSpacing: 0.14,
+            color: AppTheme.merlot,
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          'Gestión de Inventario y Ventas',
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+        const Text(
+          'PymeSync · Skincare Management',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 12,
+            color: AppTheme.mauve,
+          ),
         ),
       ],
     );

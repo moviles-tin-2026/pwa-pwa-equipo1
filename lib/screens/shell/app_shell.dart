@@ -85,15 +85,19 @@ class _AppShellState extends State<AppShell> {
                     Text(
                       user.name,
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Montserrat',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.04,
+                        color: AppTheme.cocoa,
                       ),
                     ),
                     Text(
                       user.role.label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 10,
+                        color: AppTheme.mauve,
                       ),
                     ),
                   ],
@@ -102,14 +106,14 @@ class _AppShellState extends State<AppShell> {
               ],
               CircleAvatar(
                 radius: 16,
-                backgroundColor:
-                    AppTheme.brandNavy.withValues(alpha: 0.12),
+                backgroundColor: AppTheme.peony,
                 child: Text(
                   user.name.isEmpty ? '?' : user.name[0].toUpperCase(),
                   style: const TextStyle(
-                    color: AppTheme.brandNavy,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontFamily: 'Montserrat',
+                    color: AppTheme.merlot,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -159,23 +163,42 @@ class _AppShellState extends State<AppShell> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.inventory_2,
-                          color: AppTheme.brandNavy,
+                          Icons.auto_awesome,
+                          color: AppTheme.merlot,
+                          size: 20,
                         ),
                         SizedBox(width: 8),
-                        Text(
-                          'PyME-Sync',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            color: AppTheme.brandNavy,
-                          ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AURA VITAE',
+                              style: TextStyle(
+                                fontFamily: 'Montserrat',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                letterSpacing: 0.12,
+                                color: AppTheme.cocoa,
+                              ),
+                            ),
+                            Text(
+                              'Skincare CRM',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w400,
+                                fontSize: 9,
+                                color: AppTheme.mauve,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     )
                   : const Icon(
-                      Icons.inventory_2,
-                      color: AppTheme.brandNavy,
+                      Icons.auto_awesome,
+                      color: AppTheme.merlot,
+                      size: 20,
                     ),
             ),
             destinations: [
