@@ -10,7 +10,7 @@ class KpiCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
-    this.color = AppTheme.brandNavy,
+    this.color = AppTheme.merlot,
     this.subtitle,
   });
 
@@ -34,10 +34,10 @@ class KpiCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: color.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: color, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -45,10 +45,12 @@ class KpiCard extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600,
+                    style: const TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.14,
+                      color: AppTheme.mauve,
                     ),
                   ),
                 ),
@@ -60,8 +62,11 @@ class KpiCard extends StatelessWidget {
               child: Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontFamily: 'Montserrat',
+                  fontSize: 28,
                   fontWeight: FontWeight.w800,
+                  letterSpacing: -0.01,
+                  color: AppTheme.cocoa,
                 ),
               ),
             ),
@@ -69,7 +74,11 @@ class KpiCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle!,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  color: AppTheme.mauve,
+                ),
               ),
             ],
           ],
@@ -114,7 +123,7 @@ class ProductImage extends StatelessWidget {
       width: w,
       height: h,
       decoration: BoxDecoration(
-        color: AppTheme.brandNavy.withValues(alpha: 0.08),
+        color: AppTheme.almond,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Icon(
@@ -151,22 +160,24 @@ class StockStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      StockStatus.ok => ('En stock', AppTheme.success),
-      StockStatus.low => ('Stock bajo', AppTheme.warning),
-      StockStatus.out => ('Agotado', AppTheme.danger),
+      StockStatus.ok  => ('En stock',   AppTheme.success),
+      StockStatus.low => ('Stock bajo', AppTheme.mauve),
+      StockStatus.out => ('Agotado',    AppTheme.danger),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
         style: TextStyle(
+          fontFamily: 'Montserrat',
           color: color,
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
+          letterSpacing: 0.06,
         ),
       ),
     );
@@ -181,20 +192,23 @@ class RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        role == UserRole.admin ? AppTheme.brandNavy : AppTheme.brandBlue;
+    final (bgColor, textColor) = role == UserRole.admin
+        ? (AppTheme.peony, AppTheme.merlot)
+        : (AppTheme.almond, AppTheme.mauve);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         role.label,
         style: TextStyle(
-          color: color,
-          fontSize: 12,
+          fontFamily: 'Montserrat',
+          color: textColor,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
+          letterSpacing: 0.06,
         ),
       ),
     );
@@ -214,8 +228,14 @@ class SectionHeader extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          title.toUpperCase(),
+          style: const TextStyle(
+            fontFamily: 'Montserrat',
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.16,
+            color: AppTheme.mauve,
+          ),
         ),
         ?action,
       ],
@@ -244,23 +264,29 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
+            Icon(icon, size: 52, color: AppTheme.peony),
+            const SizedBox(height: 14),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
+              style: const TextStyle(
+                fontFamily: 'Montserrat',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.06,
+                color: AppTheme.mauve,
               ),
             ),
             if (message != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: AppTheme.mauve,
+                ),
               ),
             ],
           ],
