@@ -31,6 +31,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late final TextEditingController _stockController;
   late final TextEditingController _minStockController;
   late final TextEditingController _maxStockController;
+  late final TextEditingController _imageUrlController;
   String? _categoryId;
   bool _saving = false;
 
@@ -52,6 +53,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         TextEditingController(text: p == null ? '' : '${p.minStock}');
     _maxStockController =
         TextEditingController(text: p == null ? '' : '${p.maxStock}');
+    _imageUrlController = TextEditingController(text: p?.imageUrl ?? '');
     _categoryId = p?.categoryId;
   }
 
@@ -64,6 +66,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _stockController.dispose();
     _minStockController.dispose();
     _maxStockController.dispose();
+    _imageUrlController.dispose();
     super.dispose();
   }
 
@@ -104,6 +107,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           salePrice: double.parse(_priceController.text.trim()),
           minStock: minStock,
           maxStock: maxStock,
+          imageUrl: _imageUrlController.text.trim(),
         ));
       } else {
         await repo.createProduct(
@@ -115,6 +119,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           stock: int.parse(_stockController.text.trim()),
           minStock: minStock,
           maxStock: maxStock,
+          imageUrl: _imageUrlController.text.trim(),
         );
       }
       if (!mounted) return;
@@ -268,6 +273,52 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _imageUrlController,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'URL de imagen (opcional)',
+                    prefixIcon: Icon(Icons.image_outlined),
+                    hintText: 'https://…/imagen.jpg',
+                    helperText:
+                        'Enlace directo a la imagen; se guarda solo la URL',
+                  ),
+                  validator: (v) {
+                    final url = v?.trim() ?? '';
+                    if (url.isEmpty) return null;
+                    final uri = Uri.tryParse(url);
+                    if (uri == null || !uri.isAbsolute || !url.startsWith('http')) {
+                      return 'Debe ser una URL válida (http/https)';
+                    }
+                    return null;
+                  },
+                ),
+                if (_imageUrlController.text.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ProductImage(
+                        imageUrl: _imageUrlController.text,
+                        size: 96,
+                        borderRadius: 12,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Vista previa — si ves el ícono gris, la URL no '
+                          'carga como imagen directa.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: _saving ? null : _save,

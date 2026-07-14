@@ -217,18 +217,7 @@ class _ProductCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.brandNavy.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.inventory_2_outlined,
-                  color: AppTheme.brandNavy,
-                ),
-              ),
+              ProductImage(imageUrl: product.imageUrl, size: 52),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -333,10 +322,24 @@ class _ProductTable extends StatelessWidget {
                       onSelectChanged: (_) =>
                           _showProductDetail(context, product, isAdmin),
                       cells: [
-                        DataCell(Text(
-                          product.name,
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600),
+                        DataCell(Row(
+                          children: [
+                            ProductImage(
+                              imageUrl: product.imageUrl,
+                              size: 34,
+                              borderRadius: 8,
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                product.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         )),
                         DataCell(Text(product.sku)),
                         DataCell(Text(
@@ -455,6 +458,12 @@ void _showProductDetail(BuildContext context, Product product, bool isAdmin) {
           children: [
             Row(
               children: [
+                ProductImage(
+                  imageUrl: product.imageUrl,
+                  size: 64,
+                  borderRadius: 12,
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     product.name,

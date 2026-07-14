@@ -79,6 +79,58 @@ class KpiCard extends StatelessWidget {
   }
 }
 
+/// Imagen de producto con carga desde URL externa.
+///
+/// - URL vacía o con error: muestra el ícono de inventario como fallback.
+/// - `webHtmlElementStrategy.fallback`: en Flutter web (CanvasKit) permite
+///   renderizar con un `<img>` cuando el host de la imagen no envía
+///   cabeceras CORS, evitando que fallen en GitHub Pages.
+class ProductImage extends StatelessWidget {
+  const ProductImage({
+    super.key,
+    required this.imageUrl,
+    this.size = 44,
+    this.borderRadius = 10,
+  });
+
+  final String imageUrl;
+  final double size;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppTheme.brandNavy.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+      child: Icon(
+        Icons.inventory_2_outlined,
+        color: AppTheme.brandNavy,
+        size: size * 0.5,
+      ),
+    );
+
+    if (imageUrl.trim().isEmpty) return fallback;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: Image.network(
+        imageUrl.trim(),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : fallback,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      ),
+    );
+  }
+}
+
 /// Chip de estado de stock (En stock / Stock bajo / Agotado).
 class StockStatusChip extends StatelessWidget {
   const StockStatusChip({super.key, required this.status});

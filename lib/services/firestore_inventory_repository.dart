@@ -122,6 +122,7 @@ class FirestoreInventoryRepository extends InventoryRepository {
     required int stock,
     required int minStock,
     required int maxStock,
+    String imageUrl = '',
   }) =>
       _db.collection('products').add(Product(
         id: '',
@@ -133,6 +134,7 @@ class FirestoreInventoryRepository extends InventoryRepository {
         stock: stock,
         minStock: minStock,
         maxStock: maxStock,
+        imageUrl: imageUrl,
       ).toMap());
 
   @override
