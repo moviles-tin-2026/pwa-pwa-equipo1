@@ -16,7 +16,7 @@ void main() {
         child: const MaterialApp(home: LoginScreen()),
       );
 
-  testWidgets('El login muestra el formulario y las cuentas demo',
+  testWidgets('El login muestra el formulario de acceso',
       (WidgetTester tester) async {
     await tester.pumpWidget(buildLogin());
 
@@ -24,9 +24,6 @@ void main() {
     expect(find.text('Correo electrónico'), findsOneWidget);
     expect(find.text('Contraseña'), findsOneWidget);
     expect(find.text('Entrar'), findsOneWidget);
-    // Accesos rápidos con cuentas demo (Admin / Operador).
-    expect(find.text('Admin'), findsOneWidget);
-    expect(find.text('Operador'), findsOneWidget);
   });
 
   testWidgets('Valida correo y contraseña antes de enviar',

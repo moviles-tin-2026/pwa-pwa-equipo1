@@ -87,6 +87,7 @@ class Product {
     required this.minStock,
     required this.maxStock,
     this.imageUrl = '',
+    this.description = '',
   });
 
   final String id;
@@ -102,6 +103,9 @@ class Product {
   /// URL pública directa de la imagen del producto (opción "URL externa"):
   /// Firestore solo guarda la referencia, nunca el binario.
   final String imageUrl;
+
+  /// Descripción comercial del producto.
+  final String description;
 
   StockStatus get stockStatus {
     if (stock <= 0) return StockStatus.out;
@@ -122,6 +126,7 @@ class Product {
     int? minStock,
     int? maxStock,
     String? imageUrl,
+    String? description,
   }) =>
       Product(
         id: id,
@@ -134,6 +139,7 @@ class Product {
         minStock: minStock ?? this.minStock,
         maxStock: maxStock ?? this.maxStock,
         imageUrl: imageUrl ?? this.imageUrl,
+        description: description ?? this.description,
       );
 
   Map<String, dynamic> toMap() => {
@@ -146,6 +152,7 @@ class Product {
         'minStock': minStock,
         'maxStock': maxStock,
         'imageUrl': imageUrl,
+        'description': description,
       };
 
   factory Product.fromMap(String id, Map<String, dynamic> map) => Product(
@@ -159,6 +166,7 @@ class Product {
         minStock: ((map['minStock'] ?? 0) as num).toInt(),
         maxStock: ((map['maxStock'] ?? 0) as num).toInt(),
         imageUrl: (map['imageUrl'] ?? '') as String,
+        description: (map['description'] ?? '') as String,
       );
 }
 
