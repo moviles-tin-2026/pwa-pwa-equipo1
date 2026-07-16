@@ -1,7 +1,128 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../core/app_theme.dart';
 import '../models/models.dart';
+
+/// Tarjeta con efecto glassmorphism del design system AURA VITAE.
+///
+/// Vidrio esmerilado: desenfoque del fondo (BackdropFilter), relleno
+/// blanco translúcido con gradiente sutil, borde luminoso y sombra suave.
+/// Úsala sobre [AuraBackground] (o cualquier fondo con color/gradiente)
+/// para que el desenfoque tenga algo que difuminar.
+class GlassCard extends StatelessWidget {
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.borderRadius = 18,
+    this.padding,
+    this.blur = 16,
+    this.opacity = 0.55,
+  });
+
+  final Widget child;
+  final double borderRadius;
+  final EdgeInsetsGeometry? padding;
+  final double blur;
+
+  /// Opacidad del relleno blanco (0-1). Más bajo = más transparente.
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.merlot.withValues(alpha: 0.10),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: opacity + 0.15),
+                  Colors.white.withValues(alpha: opacity - 0.10),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.70),
+                width: 1.2,
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fondo decorativo del shell: gradiente cálido con manchas de color
+/// difusas (peony/mauve/merlot) que hacen visible el efecto de vidrio
+/// de las [GlassCard] superpuestas.
+class AuraBackground extends StatelessWidget {
+  const AuraBackground({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFF4ECE8),
+                AppTheme.almond,
+                Color(0xFFEDDEDA),
+              ],
+            ),
+          ),
+        ),
+        Positioned(top: -120, right: -80, child: _blob(300, AppTheme.peony, 0.55)),
+        Positioned(top: 260, left: -140, child: _blob(280, AppTheme.mauve, 0.22)),
+        Positioned(bottom: -110, right: 60, child: _blob(320, AppTheme.merlot, 0.12)),
+        child,
+      ],
+    );
+  }
+
+  static Widget _blob(double size, Color color, double alpha) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: alpha),
+              color.withValues(alpha: 0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Tarjeta de indicador (KPI) para dashboards.
 class KpiCard extends StatelessWidget {
@@ -22,10 +143,9 @@ class KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -82,7 +202,6 @@ class KpiCard extends StatelessWidget {
               ),
             ],
           ],
-        ),
       ),
     );
   }

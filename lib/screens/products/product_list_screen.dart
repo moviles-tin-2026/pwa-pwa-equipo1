@@ -17,7 +17,10 @@ import 'product_form_screen.dart';
 /// Ambos roles pueden dar de alta productos nuevos. Solo el Admin edita,
 /// elimina y gestiona categorías (matriz RBAC).
 class ProductListScreen extends StatefulWidget {
-  const ProductListScreen({super.key});
+  const ProductListScreen({super.key, this.initialQuery});
+
+  /// Búsqueda inicial prellenada (la fija la búsqueda global del topbar).
+  final String? initialQuery;
 
   @override
   State<ProductListScreen> createState() => _ProductListScreenState();
@@ -28,6 +31,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
   String _search = '';
   String? _categoryId;
   StockStatus? _stockStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _search = widget.initialQuery ?? '';
+    _searchController.text = _search;
+  }
 
   @override
   void dispose() {
