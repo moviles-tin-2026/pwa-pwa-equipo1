@@ -4,13 +4,15 @@ import 'package:provider/provider.dart';
 
 import '../../core/responsive.dart';
 import '../../models/models.dart';
+import '../../services/auth_service.dart';
 import '../../services/inventory_repository.dart';
 import '../../widgets/common.dart';
+import '../shell/app_shell.dart';
 
-/// Módulo 2 — Formulario de Producto (Solo Admin).
+/// Módulo 2 — Formulario de Producto.
 ///
-/// Crea o edita productos con: nombre, SKU/código de barras, categoría,
-/// precio de costo, precio de venta, stock mínimo y máximo.
+/// Admin y Operador pueden crear productos. Solo el Admin edita existentes.
+/// Campos: nombre, SKU/código de barras, categoría, precios, stock mín/máx.
 class ProductFormScreen extends StatefulWidget {
   const ProductFormScreen({super.key, this.product});
 
@@ -143,6 +145,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isEditing && !context.watch<AuthService>().isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Editar producto')),
+        body: const AdminOnly(child: SizedBox.shrink()),
+      );
+    }
+
     final repo = context.watch<InventoryRepository>();
     final numberFormatters = [
       FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),

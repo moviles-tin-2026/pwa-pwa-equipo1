@@ -36,12 +36,7 @@ class PymeSyncApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AuthService(),
-      child: MaterialApp(
-        title: 'AURA VITAE · PymeSync',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        home: const AuthGate(),
-      ),
+      child: const _PymeSyncRoot(),
     );
   }
 }
@@ -57,13 +52,22 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
 
-    if (!auth.isLoggedIn) return const LoginScreen();
+    final app = MaterialApp(
+      title: 'AURA VITAE · PymeSync',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      home: auth.isLoggedIn ? const AppShell() : const LoginScreen(),
+    );
+
+    if (!auth.isLoggedIn) return app;
 
     return ChangeNotifierProvider<InventoryRepository>(
-      // key fuerza un repositorio nuevo al cambiar de usuario.
-      key: ValueKey(auth.currentUser!.id),
-      create: (_) => FirestoreInventoryRepository(),
-      child: const AppShell(),
+      // key fuerza un repositorio nuevo al cambiar de usuario/modo.
+      key: ValueKey('${auth.currentUser!.id}-${auth.isDemoSession}'),
+      create: (_) => auth.isDemoSession
+          ? LocalInventoryRepository()
+          : FirestoreInventoryRepository(),
+      child: app,
     );
   }
 }
