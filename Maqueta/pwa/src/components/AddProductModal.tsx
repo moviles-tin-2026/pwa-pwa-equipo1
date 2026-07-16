@@ -5,10 +5,18 @@ import { IconPlus } from './Icons'
 const DEFAULT_IMG =
   'https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=500&q=60'
 
-export default function AddProductModal({ onClose }: { onClose: () => void }) {
+export default function AddProductModal({
+  onClose,
+  initialName = '',
+  initialSku = '',
+}: {
+  onClose: () => void
+  initialName?: string
+  initialSku?: string
+}) {
   const { addProduct } = useApp()
-  const [name, setName] = useState('')
-  const [sku, setSku] = useState('')
+  const [name, setName] = useState(initialName)
+  const [sku, setSku] = useState(initialSku)
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('')
   const [category, setCategory] = useState('')
@@ -42,8 +50,8 @@ export default function AddProductModal({ onClose }: { onClose: () => void }) {
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
           <label className="field">
-            <span className="field__label">SKU</span>
-            <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU-0000" />
+            <span className="field__label">SKU o código</span>
+            <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Ej. SKU-0001" />
           </label>
           <div className="field-row">
             <label className="field">

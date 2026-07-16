@@ -25,66 +25,94 @@ class SalesHistoryScreen extends StatelessWidget {
 
     final sales = isAdmin ? repo.sales : repo.salesOfToday();
     final activeSales = sales.where((s) => !s.cancelled).toList();
-    final total =
-        activeSales.fold<double>(0, (sum, s) => sum + s.total);
+    final total = activeSales.fold<double>(0, (sum, s) => sum + s.total);
 
     return PageContainer(
       child: Column(
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(padding, 16, padding, 0),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAdmin
-                                ? 'Ingresos totales (histórico)'
-                                : 'Total del turno (hoy)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            formatCurrency(total),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.brandNavy,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${activeSales.length} venta(s)',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (isAdmin)
-                          Text(
-                            '${sales.where((s) => s.cancelled).length} cancelada(s)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                      ],
-                    ),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.merlot.withValues(alpha: 0.08),
+                    AppTheme.almond,
                   ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isAdmin
+                                  ? 'Ingresos totales (histórico)'
+                                  : 'Total del turno (hoy)',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              formatCurrency(total),
+                              style: const TextStyle(
+                                fontFamily: 'Montserrat',
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.cocoa,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.success.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.receipt_long_outlined,
+                          color: AppTheme.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _SummaryPill(
+                        label: 'Activas',
+                        value: '${activeSales.length}',
+                      ),
+                      if (isAdmin)
+                        _SummaryPill(
+                          label: 'Canceladas',
+                          value: '${sales.where((s) => s.cancelled).length}',
+                        ),
+                      _SummaryPill(
+                        label: 'Monto',
+                        value: formatCurrency(total),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -101,10 +129,8 @@ class SalesHistoryScreen extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(padding, 16, padding, 24),
                     itemCount: sales.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _SaleCard(
-                      sale: sales[index],
-                      isAdmin: isAdmin,
-                    ),
+                    itemBuilder: (context, index) =>
+                        _SaleCard(sale: sales[index], isAdmin: isAdmin),
                   ),
           ),
         ],
@@ -127,105 +153,112 @@ class _SaleCard extends StatelessWidget {
       PaymentMethod.transfer => Icons.swap_horiz,
     };
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
       child: InkWell(
+        borderRadius: BorderRadius.circular(18),
         onTap: () => _showSaleDetail(context),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (sale.cancelled ? AppTheme.danger : AppTheme.success)
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  sale.cancelled ? Icons.cancel_outlined : Icons.receipt,
-                  color: sale.cancelled ? AppTheme.danger : AppTheme.success,
-                  size: 20,
-                ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (sale.cancelled ? AppTheme.danger : AppTheme.success)
+                    .withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          sale.folio,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            decoration: sale.cancelled
-                                ? TextDecoration.lineThrough
-                                : null,
+              child: Icon(
+                sale.cancelled ? Icons.cancel_outlined : Icons.receipt,
+                color: sale.cancelled ? AppTheme.danger : AppTheme.success,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        sale.folio,
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontWeight: FontWeight.w800,
+                          decoration: sale.cancelled
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: AppTheme.cocoa,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (sale.cancelled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.danger.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Cancelada',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.danger,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        if (sale.cancelled)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.danger.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Cancelada',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.danger,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${sale.itemCount} artículo(s) · ${formatDateTime(sale.date)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      'Atendió: ${sale.userName}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    formatCurrency(sale.total),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: sale.cancelled
-                          ? Colors.grey
-                          : AppTheme.brandNavy,
-                      decoration: sale.cancelled
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
+                    ],
                   ),
                   const SizedBox(height: 4),
-                  Icon(methodIcon, size: 18, color: Colors.grey.shade500),
+                  Text(
+                    '${sale.itemCount} artículo(s) · ${formatDateTime(sale.date)}',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  Text(
+                    'Atendió: ${sale.userName}',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatCurrency(sale.total),
+                  style: TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: sale.cancelled ? Colors.grey : AppTheme.merlot,
+                    decoration: sale.cancelled
+                        ? TextDecoration.lineThrough
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Icon(methodIcon, size: 18, color: Colors.grey.shade500),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -261,10 +294,7 @@ class _SaleCard extends StatelessWidget {
                   ),
                   Text(
                     formatDateTime(sale.date),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -355,6 +385,47 @@ class _SaleCard extends StatelessWidget {
               );
             },
             child: const Text('Cancelar venta'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryPill extends StatelessWidget {
+  const _SummaryPill({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'Montserrat',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.cocoa,
+            ),
           ),
         ],
       ),

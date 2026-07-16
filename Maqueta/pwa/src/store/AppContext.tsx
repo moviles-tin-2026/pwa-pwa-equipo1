@@ -6,8 +6,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { CartItem, Product } from '../data/types'
-import { PRODUCTS } from '../data/mockData'
+import type { CartItem, Product, UserProfile } from '../data/types'
+import { PRODUCTS, USERS } from '../data/mockData'
 
 interface AppState {
   // auth
@@ -27,11 +27,28 @@ interface AppState {
   changeQty: (id: string, delta: number) => void
   clearCart: () => void
   confirmSale: () => void
+
+  // users
+  users: UserProfile[]
+  toggleUserStatus: (id: string) => void
+  cycleUserRole: (id: string) => void
 }
 
 const AppContext = createContext<AppState | null>(null)
 
 const AUTH_KEY = 'pyme-auth'
+
+function buildSku(value: string | undefined, existing: Product[]) {
+  const trimmed = value?.trim().toUpperCase()
+  if (trimmed) {
+    const exists = existing.some((item) => item.sku.toUpperCase() === trimmed)
+    if (!exists) return trimmed
+    const suffix = Date.now().toString().slice(-4)
+    return `${trimmed}-${suffix}`
+  }
+
+  return `SKU-${Date.now().toString().slice(-6)}`
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState(() => {
@@ -45,6 +62,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   })
   const [products, setProducts] = useState<Product[]>(PRODUCTS)
   const [cart, setCart] = useState<CartItem[]>([])
+  const [users, setUsers] = useState<UserProfile[]>(USERS)
 
   const login = useCallback((email: string) => {
     const next = { email }
@@ -58,7 +76,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addProduct = useCallback((p: Omit<Product, 'id'>) => {
-    setProducts((prev) => [{ ...p, id: `p${Date.now()}` }, ...prev])
+    setProducts((prev) => [
+      {
+        ...p,
+        sku: buildSku(p.sku, prev),
+        id: `p${Date.now()}`,
+      },
+      ...prev,
+    ])
   }, [])
 
   const addToCart = useCallback((p: Product) => {
@@ -99,6 +124,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCart([])
   }, [cart])
 
+  const toggleUserStatus = useCallback((id: string) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === id
+          ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' }
+          : u,
+      ),
+    )
+  }, [])
+
+  const cycleUserRole = useCallback((id: string) => {
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== id) return u
+        const roles: UserProfile['role'][] = ['cashier', 'manager', 'admin']
+        const currentIndex = roles.indexOf(u.role)
+        const nextRole = roles[(currentIndex + 1) % roles.length]
+        return { ...u, role: nextRole }
+      }),
+    )
+  }, [])
+
   const value = useMemo<AppState>(
     () => ({
       isAuthenticated: !!auth,
@@ -113,6 +160,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       changeQty,
       clearCart,
       confirmSale,
+      users,
+      toggleUserStatus,
+      cycleUserRole,
     }),
     [
       auth,
@@ -126,6 +176,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       changeQty,
       clearCart,
       confirmSale,
+      users,
+      toggleUserStatus,
+      cycleUserRole,
     ],
   )
 

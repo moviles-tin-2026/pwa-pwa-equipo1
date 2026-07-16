@@ -19,6 +19,11 @@ class UsersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = context.watch<InventoryRepository>();
     final padding = context.pagePadding;
+    final isMobile = context.isMobile;
+
+    final activeCount = repo.users.where((u) => u.active).length;
+    final adminCount = repo.users.where((u) => u.isAdmin).length;
+    final inactiveCount = repo.users.where((u) => !u.active).length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -30,29 +35,175 @@ class UsersScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.fromLTRB(padding, 16, padding, 96),
         children: [
-          const SectionHeader(title: 'Usuarios del sistema'),
-          const SizedBox(height: 4),
-          Text(
-            'Asigna roles para controlar el acceso a cada módulo (matriz RBAC).',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.merlot.withValues(alpha: 0.08),
+                  AppTheme.almond,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.borderColor),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Gestión de usuarios',
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.cocoa,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Administra roles, accesos y estado del equipo sin perder el control del negocio.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.merlot.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.group_outlined,
+                    color: AppTheme.merlot,
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: isMobile ? 1 : 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: isMobile ? 2.8 : 2.1,
+            children: [
+              _SummaryCard(
+                title: 'Activos',
+                value: '$activeCount',
+                icon: Icons.verified_user,
+                color: AppTheme.success,
+              ),
+              _SummaryCard(
+                title: 'Administradores',
+                value: '$adminCount',
+                icon: Icons.admin_panel_settings_outlined,
+                color: AppTheme.brandNavy,
+              ),
+              _SummaryCard(
+                title: 'Inactivos',
+                value: '$inactiveCount',
+                icon: Icons.person_off_outlined,
+                color: AppTheme.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const SectionHeader(title: 'Equipo operativo'),
+          const SizedBox(height: 12),
           if (repo.users.isEmpty)
             const EmptyState(
               icon: Icons.group_outlined,
               title: 'Sin usuarios registrados',
             )
           else
-            Card(
-              child: Column(
-                children: [
-                  for (int i = 0; i < repo.users.length; i++) ...[
-                    if (i > 0) const Divider(height: 1),
-                    _UserTile(user: repo.users[i]),
-                  ],
-                ],
-              ),
+            GridView.count(
+              crossAxisCount: isMobile ? 1 : 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: isMobile ? 1.8 : 1.45,
+              children: [for (final user in repo.users) _UserTile(user: user)],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.cocoa,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -68,93 +219,156 @@ class _UserTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = context.read<InventoryRepository>();
 
-    return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: CircleAvatar(
-        backgroundColor: (user.isAdmin ? AppTheme.brandNavy : AppTheme.brandBlue)
-            .withValues(alpha: 0.12),
-        child: Text(
-          user.name.isEmpty ? '?' : user.name[0].toUpperCase(),
-          style: TextStyle(
-            color: user.isAdmin ? AppTheme.brandNavy : AppTheme.brandBlue,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.borderColor),
       ),
-      title: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
-            child: Text(
-              user.name,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                decoration: user.active ? null : TextDecoration.lineThrough,
-                color: user.active ? null : Colors.grey,
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor:
+                    (user.isAdmin ? AppTheme.brandNavy : AppTheme.brandBlue)
+                        .withValues(alpha: 0.12),
+                child: Text(
+                  user.name.isEmpty ? '?' : user.name[0].toUpperCase(),
+                  style: TextStyle(
+                    color: user.isAdmin
+                        ? AppTheme.brandNavy
+                        : AppTheme.brandBlue,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w700,
+                        decoration: user.active
+                            ? null
+                            : TextDecoration.lineThrough,
+                        color: user.active ? AppTheme.cocoa : Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      user.email,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Acciones',
+                onSelected: (action) {
+                  switch (action) {
+                    case 'edit':
+                      _showUserForm(context, user: user);
+                    case 'toggle':
+                      repo.updateUser(user.copyWith(active: !user.active));
+                    case 'delete':
+                      _confirmDelete(context, user);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: ListTile(
+                      leading: Icon(Icons.edit_outlined),
+                      title: Text('Editar / cambiar rol'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: ListTile(
+                      leading: Icon(
+                        user.active
+                            ? Icons.person_off_outlined
+                            : Icons.person_outline,
+                      ),
+                      title: Text(user.active ? 'Desactivar' : 'Reactivar'),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.delete_outline,
+                        color: AppTheme.danger,
+                      ),
+                      title: Text(
+                        'Eliminar',
+                        style: TextStyle(color: AppTheme.danger),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          RoleBadge(role: user.role),
-          if (!user.active) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'Inactivo',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Text(user.email),
-      trailing: PopupMenuButton<String>(
-        tooltip: 'Acciones',
-        onSelected: (action) {
-          switch (action) {
-            case 'edit':
-              _showUserForm(context, user: user);
-            case 'toggle':
-              repo.updateUser(user.copyWith(active: !user.active));
-            case 'delete':
-              _confirmDelete(context, user);
-          }
-        },
-        itemBuilder: (context) => [
-          const PopupMenuItem(
-            value: 'edit',
-            child: ListTile(
-              leading: Icon(Icons.edit_outlined),
-              title: Text('Editar / cambiar rol'),
-            ),
-          ),
-          PopupMenuItem(
-            value: 'toggle',
-            child: ListTile(
-              leading: Icon(
-                user.active
-                    ? Icons.person_off_outlined
-                    : Icons.person_outline,
-              ),
-              title: Text(user.active ? 'Desactivar' : 'Reactivar'),
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'delete',
-            child: ListTile(
-              leading: Icon(Icons.delete_outline, color: AppTheme.danger),
-              title: Text(
-                'Eliminar',
-                style: TextStyle(color: AppTheme.danger),
-              ),
-            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              RoleBadge(role: user.role),
+              if (!user.active)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Inactivo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Activo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.success,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
