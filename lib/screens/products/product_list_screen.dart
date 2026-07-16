@@ -457,8 +457,14 @@ void _showProductDetail(BuildContext context, Product product, bool isAdmin) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    // Desplazable y con altura máxima: en ventanas bajas el contenido
+    // hace scroll en lugar de desbordar.
+    isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+    ),
     builder: (sheetContext) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
