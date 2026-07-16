@@ -29,6 +29,7 @@ class PosScreen extends StatefulWidget {
 class _PosScreenState extends State<PosScreen> {
   final _searchController = TextEditingController();
   String _search = '';
+  String? _categoryId;
 
   /// Carrito: productId -> cantidad.
   final Map<String, int> _cart = {};
@@ -141,6 +142,7 @@ class _PosScreenState extends State<PosScreen> {
 
     final query = _search.trim().toLowerCase();
     final products = repo.products.where((p) {
+      if (_categoryId != null && p.categoryId != _categoryId) return false;
       if (query.isEmpty) return true;
       return p.name.toLowerCase().contains(query) ||
           p.sku.toLowerCase().contains(query);
@@ -173,6 +175,32 @@ class _PosScreenState extends State<PosScreen> {
             ),
           ),
         ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+          child: SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                FilterChip(
+                  label: const Text('Todas'),
+                  selected: _categoryId == null,
+                  onSelected: (_) => setState(() => _categoryId = null),
+                ),
+                for (final category in repo.categories) ...[
+                  const SizedBox(width: 8),
+                  FilterChip(
+                    label: Text(category.name),
+                    selected: _categoryId == category.id,
+                    onSelected: (selected) => setState(
+                      () => _categoryId = selected ? category.id : null,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
         Expanded(
           child: products.isEmpty
               ? const EmptyState(
@@ -188,10 +216,10 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                   gridDelegate:
                       SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: isMobile ? 220 : 240,
+                    maxCrossAxisExtent: isMobile ? 200 : 220,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
-                    childAspectRatio: 1.5,
+                    mainAxisExtent: 216,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, index) {
@@ -507,26 +535,22 @@ class _PosProductCard extends StatelessWidget {
         onTap: onTap,
         child: Opacity(
           opacity: disabled ? 0.5 : 1,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    if (inCart > 0)
-                      Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Stack(
+                children: [
+                  ProductImage(
+                    imageUrl: product.imageUrl,
+                    width: double.infinity,
+                    height: 104,
+                    borderRadius: 0,
+                  ),
+                  if (inCart > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 2,
@@ -544,27 +568,50 @@ class _PosProductCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  formatCurrency(product.salePrice),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: AppTheme.brandNavy,
+                    ),
+                ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          height: 1.2,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        formatCurrency(product.salePrice),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppTheme.brandNavy,
+                        ),
+                      ),
+                      Text(
+                        disabled
+                            ? 'Sin stock disponible'
+                            : 'Disp: $available',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: disabled
+                              ? AppTheme.danger
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  disabled ? 'Sin stock disponible' : 'Disp: $available',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: disabled ? AppTheme.danger : Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

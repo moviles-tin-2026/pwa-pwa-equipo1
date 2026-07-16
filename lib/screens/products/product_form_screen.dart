@@ -34,6 +34,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late final TextEditingController _minStockController;
   late final TextEditingController _maxStockController;
   late final TextEditingController _imageUrlController;
+  late final TextEditingController _descriptionController;
   String? _categoryId;
   bool _saving = false;
 
@@ -56,6 +57,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _maxStockController =
         TextEditingController(text: p == null ? '' : '${p.maxStock}');
     _imageUrlController = TextEditingController(text: p?.imageUrl ?? '');
+    _descriptionController =
+        TextEditingController(text: p?.description ?? '');
     _categoryId = p?.categoryId;
   }
 
@@ -69,6 +72,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _minStockController.dispose();
     _maxStockController.dispose();
     _imageUrlController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -110,6 +114,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           minStock: minStock,
           maxStock: maxStock,
           imageUrl: _imageUrlController.text.trim(),
+          description: _descriptionController.text.trim(),
         ));
       } else {
         await repo.createProduct(
@@ -122,6 +127,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           minStock: minStock,
           maxStock: maxStock,
           imageUrl: _imageUrlController.text.trim(),
+          description: _descriptionController.text.trim(),
         );
       }
       if (!mounted) return;
@@ -186,6 +192,17 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Ingresa el SKU o código'
                       : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción (opcional)',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                    alignLabelWithHint: true,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(

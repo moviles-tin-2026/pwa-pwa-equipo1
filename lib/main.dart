@@ -27,9 +27,8 @@ Future<void> main() async {
 /// - Módulo 3: Movimientos de Almacén.
 /// - Módulo 4: Punto de Venta e Historial.
 ///
-/// Los datos viven en Cloud Firestore con sincronización reactiva
-/// (snapshots). Las cuentas demo usan un repositorio local en memoria
-/// para previsualizar la UI sin depender de la consola de Firebase.
+/// Todos los datos viven en Cloud Firestore (proyecto PyME) con
+/// sincronización reactiva mediante snapshots.
 class PymeSyncApp extends StatelessWidget {
   const PymeSyncApp({super.key});
 
@@ -42,10 +41,12 @@ class PymeSyncApp extends StatelessWidget {
   }
 }
 
-/// Raíz con [MaterialApp] debajo de los providers de sesión para que las
-/// rutas empujadas (formularios, etc.) sigan teniendo acceso al repositorio.
-class _PymeSyncRoot extends StatelessWidget {
-  const _PymeSyncRoot();
+/// Redirige según el estado de sesión:
+/// - Sin sesión: pantalla de Login.
+/// - Con sesión: shell principal con el menú filtrado por rol, con el
+///   repositorio conectado a Cloud Firestore.
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {

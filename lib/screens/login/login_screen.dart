@@ -288,9 +288,8 @@ class _LoginFormState extends State<_LoginForm> {
     if (_whitespaceRegex.hasMatch(password)) {
       return 'No debe contener espacios en blanco';
     }
-    for (final rule in _passwordRules) {
-      if (!rule.isMet(password)) return 'Falta: ${rule.label}';
-    }
+    // Las reglas de complejidad (_passwordRules) solo se muestran como
+    // guía en el medidor; la verificación real la hace Firebase Auth.
     return null;
   }
 
@@ -425,50 +424,6 @@ class _LoginFormState extends State<_LoginForm> {
                         ),
                       )
                     : const Text('Entrar', style: TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'Cuentas demo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _signIn('admin@pymesync.com', 'Admin123!'),
-                      icon: const Icon(Icons.admin_panel_settings_outlined),
-                      label: const Text('Admin'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _signIn(
-                                'operador@pymesync.com',
-                                'Operador123!',
-                              ),
-                      icon: const Icon(Icons.point_of_sale_outlined),
-                      label: const Text('Operador'),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
