@@ -43,15 +43,15 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   List<SaleItem> _cartItems(InventoryRepository repo) => [
-        for (final entry in _cart.entries)
-          if (repo.productById(entry.key) case final product?)
-            SaleItem(
-              productId: product.id,
-              productName: product.name,
-              unitPrice: product.salePrice,
-              quantity: entry.value,
-            ),
-      ];
+    for (final entry in _cart.entries)
+      if (repo.productById(entry.key) case final product?)
+        SaleItem(
+          productId: product.id,
+          productName: product.name,
+          unitPrice: product.salePrice,
+          quantity: entry.value,
+        ),
+  ];
 
   double _total(InventoryRepository repo) =>
       _cartItems(repo).fold(0, (sum, item) => sum + item.subtotal);
@@ -70,8 +70,11 @@ class _PosScreenState extends State<PosScreen> {
     setState(() => _cart[product.id] = current + 1);
   }
 
-  void _changeQuantity(String productId, int delta,
-      {StateSetter? sheetSetState}) {
+  void _changeQuantity(
+    String productId,
+    int delta, {
+    StateSetter? sheetSetState,
+  }) {
     void apply() {
       final current = _cart[productId] ?? 0;
       final next = current + delta;
@@ -113,11 +116,7 @@ class _PosScreenState extends State<PosScreen> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(
-          Icons.check_circle,
-          color: AppTheme.success,
-          size: 48,
-        ),
+        icon: const Icon(Icons.check_circle, color: AppTheme.success, size: 48),
         title: Text('Venta ${sale.folio} completada'),
         content: Text(
           'Total: ${formatCurrency(sale.total)}\n'
@@ -154,6 +153,72 @@ class _PosScreenState extends State<PosScreen> {
           padding: EdgeInsets.fromLTRB(
             context.pagePadding,
             16,
+            context.pagePadding,
+            8,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.merlot.withValues(alpha: 0.08),
+                  AppTheme.almond,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.borderColor),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Terminal de ventas',
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.cocoa,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _cart.isEmpty
+                            ? 'Busca productos y arma el ticket en segundos.'
+                            : 'Tienes ${_cartCount()} artículo(s) listo para cerrar la venta.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.merlot.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.point_of_sale_outlined,
+                    color: AppTheme.merlot,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.pagePadding,
+            8,
             context.pagePadding,
             8,
           ),
@@ -214,8 +279,7 @@ class _PosScreenState extends State<PosScreen> {
                     context.pagePadding,
                     isMobile ? 96 : 24,
                   ),
-                  gridDelegate:
-                      SliverGridDelegateWithMaxCrossAxisExtent(
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: isMobile ? 200 : 220,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
@@ -230,9 +294,7 @@ class _PosScreenState extends State<PosScreen> {
                       product: product,
                       inCart: inCart,
                       available: available,
-                      onTap: available > 0
-                          ? () => _addToCart(product)
-                          : null,
+                      onTap: available > 0 ? () => _addToCart(product) : null,
                     );
                   },
                 ),
@@ -322,13 +384,17 @@ class _PosScreenState extends State<PosScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.shopping_cart_outlined,
-                  color: AppTheme.brandNavy),
+              const Icon(
+                Icons.shopping_cart_outlined,
+                color: AppTheme.brandNavy,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Carrito (${_cartCount()})',
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const Spacer(),
               if (items.isNotEmpty)
@@ -361,8 +427,7 @@ class _PosScreenState extends State<PosScreen> {
                           children: [
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     item.productName,
@@ -386,8 +451,7 @@ class _PosScreenState extends State<PosScreen> {
                             IconButton(
                               iconSize: 20,
                               visualDensity: VisualDensity.compact,
-                              icon: const Icon(
-                                  Icons.remove_circle_outline),
+                              icon: const Icon(Icons.remove_circle_outline),
                               onPressed: () => _changeQuantity(
                                 item.productId,
                                 -1,
@@ -597,9 +661,7 @@ class _PosProductCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        disabled
-                            ? 'Sin stock disponible'
-                            : 'Disp: $available',
+                        disabled ? 'Sin stock disponible' : 'Disp: $available',
                         style: TextStyle(
                           fontSize: 11,
                           color: disabled
