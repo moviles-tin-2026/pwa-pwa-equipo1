@@ -36,7 +36,7 @@ class PymeSyncApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AuthService(),
-      child: const _PymeSyncRoot(),
+      child: const AuthGate(),
     );
   }
 }
@@ -62,11 +62,9 @@ class AuthGate extends StatelessWidget {
     if (!auth.isLoggedIn) return app;
 
     return ChangeNotifierProvider<InventoryRepository>(
-      // key fuerza un repositorio nuevo al cambiar de usuario/modo.
-      key: ValueKey('${auth.currentUser!.id}-${auth.isDemoSession}'),
-      create: (_) => auth.isDemoSession
-          ? LocalInventoryRepository()
-          : FirestoreInventoryRepository(),
+      // key fuerza un repositorio nuevo al cambiar de usuario.
+      key: ValueKey(auth.currentUser!.id),
+      create: (_) => FirestoreInventoryRepository(),
       child: app,
     );
   }
