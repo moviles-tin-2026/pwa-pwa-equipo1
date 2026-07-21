@@ -45,48 +45,6 @@ La app ofrece gestión de inventario en tiempo real, punto de venta con transacc
 
 ---
 
-## 🚀 Puesta en marcha
-
-### Requisitos
-
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (Dart `^3.12.2`).
-- Un proyecto de **Firebase** con **Authentication (Email/Password)** y **Cloud Firestore** habilitados.
-
-### Instalación
-
-```bash
-# 1. Clonar el repositorio
-git clone <URL-del-repo>
-cd pwa-pwa-equipo1
-
-# 2. Instalar dependencias
-flutter pub get
-
-# 3. Configurar Firebase (genera lib/firebase_options.dart)
-flutterfire configure
-
-# 4. Ejecutar
-flutter run -d chrome        # Web
-# flutter run                # Dispositivo / emulador
-```
-
-### Configuración de Firebase
-
-1. Habilita **Authentication → Email/Password**.
-2. Crea las cuentas de prueba (ver tabla de credenciales) desde la consola de Firebase.
-3. En **Cloud Firestore**, crea un documento por usuario en la colección `users` con la forma:
-
-   ```json
-   {
-     "name": "Administrador",
-     "email": "admin@auravitae.com",
-     "role": "admin",          // "admin" u "operator"
-     "active": true
-   }
-   ```
-
----
-
 ## 🛠️ Stack técnico
 
 | Área              | Tecnología                          |
