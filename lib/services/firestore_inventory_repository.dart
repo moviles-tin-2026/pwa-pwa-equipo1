@@ -236,17 +236,18 @@ class FirestoreInventoryRepository extends InventoryRepository {
           tx.update(entry.ref, {
             'stock': entry.product.stock - entry.item.quantity,
           });
+          final mRef = _db.collection('movements').doc();
           tx.set(
-            _db.collection('movements').doc(),
+            mRef,
             StockMovement(
-              id: '',
+              id: mRef.id,
               productId: entry.product.id,
               productName: entry.product.name,
               type: MovementType.exit,
               quantity: entry.item.quantity,
               reason: 'Venta: $folio',
               userName: userName,
-              date: now,
+              date: DateTime.now(),
             ).toMap(),
           );
         }
