@@ -233,33 +233,10 @@ class _LoginFormState extends State<_LoginForm> {
 
   bool _obscurePassword = true;
   bool _isSubmitting = false;
-  String _passwordValue = '';
 
   // ---- Estándar de seguridad de contraseña ----
-  static const int _passwordMinLength = 8;
   static const int _passwordMaxLength = 64;
   static final RegExp _whitespaceRegex = RegExp(r'\s');
-
-  static final List<_PasswordRule> _passwordRules = [
-    _PasswordRule(
-      'Al menos $_passwordMinLength caracteres',
-      (p) => p.length >= _passwordMinLength,
-    ),
-    _PasswordRule(
-      'Una letra mayúscula (A-Z)',
-      (p) => RegExp(r'[A-Z]').hasMatch(p),
-    ),
-    _PasswordRule(
-      'Una letra minúscula (a-z)',
-      (p) => RegExp(r'[a-z]').hasMatch(p),
-    ),
-    _PasswordRule('Un número (0-9)', (p) => RegExp(r'[0-9]').hasMatch(p)),
-    _PasswordRule(
-      'Un carácter especial (!@#\$%&* ...)',
-      (p) =>
-          RegExp(r'''[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]/;]''').hasMatch(p),
-    ),
-  ];
 
   @override
   void dispose() {
@@ -288,8 +265,8 @@ class _LoginFormState extends State<_LoginForm> {
     if (_whitespaceRegex.hasMatch(password)) {
       return 'No debe contener espacios en blanco';
     }
-    // Las reglas de complejidad (_passwordRules) solo se muestran como
-    // guía en el medidor; la verificación real la hace Firebase Auth.
+    // Las credenciales son pre-asignadas: la verificación real de la
+    // contraseña la hace Firebase Auth contra el usuario existente.
     return null;
   }
 
@@ -363,8 +340,6 @@ class _LoginFormState extends State<_LoginForm> {
                 textInputAction: TextInputAction.done,
                 validator: _validatePassword,
                 onFieldSubmitted: (_) => _submit(),
-                onChanged: (value) =>
-                    setState(() => _passwordValue = value),
                 decoration: InputDecoration(
                   labelText: 'Contraseña',
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -383,13 +358,6 @@ class _LoginFormState extends State<_LoginForm> {
                   ),
                 ),
               ),
-              if (_passwordValue.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _PasswordStrengthMeter(
-                  password: _passwordValue,
-                  rules: _passwordRules,
-                ),
-              ],
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -433,93 +401,3 @@ class _LoginFormState extends State<_LoginForm> {
   }
 }
 
-class _PasswordRule {
-  const _PasswordRule(this.label, this.isMet);
-  final String label;
-  final bool Function(String password) isMet;
-}
-
-class _PasswordStrengthMeter extends StatelessWidget {
-  const _PasswordStrengthMeter({
-    required this.password,
-    required this.rules,
-  });
-
-  final String password;
-  final List<_PasswordRule> rules;
-
-  @override
-  Widget build(BuildContext context) {
-    final metCount = rules.where((rule) => rule.isMet(password)).length;
-    final ratio = metCount / rules.length;
-
-    late final Color color;
-    late final String label;
-    if (ratio < 0.5) {
-      color = AppTheme.danger;
-      label = 'Débil';
-    } else if (ratio < 1.0) {
-      color = AppTheme.warning;
-      label = 'Media';
-    } else {
-      color = AppTheme.success;
-      label = 'Fuerte';
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: ratio,
-                  minHeight: 6,
-                  backgroundColor: Colors.grey[300],
-                  color: color,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 12,
-          runSpacing: 4,
-          children: rules.map((rule) {
-            final met = rule.isMet(password);
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  met ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 14,
-                  color: met ? AppTheme.success : Colors.grey,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  rule.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: met ? Colors.grey[700] : Colors.grey,
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}

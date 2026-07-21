@@ -1,17 +1,115 @@
-# login_app
+# AURA VITAE · PyME-Sync
 
-A new Flutter project.
+**Control de Inventarios y Ventas Multiplataforma** para PyMEs de skincare, construido con Flutter (Web / móvil / escritorio) sobre Firebase Authentication y Cloud Firestore.
 
-## Getting Started
+La app ofrece gestión de inventario en tiempo real, punto de venta con transacciones atómicas y acceso diferenciado por roles (**Administrador** y **Operador**).
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## 🔐 Credenciales de prueba
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+> Usa estas cuentas para probar la aplicación. Corresponden a usuarios reales en **Firebase Authentication**; el rol se detecta automáticamente al iniciar sesión.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Rol           | Correo                     | Contraseña       |
+| ------------- | -------------------------- | ---------------- |
+| Administrador | `admin@auravitae.com`      | `AuraAdmin2026!` |
+| Operador      | `operador@auravitae.com`   | `AuraOpen2026!`  |
+
+**Requisitos de la contraseña** (validados por Firebase Auth; el medidor de la app es solo una guía visual):
+
+- Mínimo 8 caracteres (máximo 64), sin espacios en blanco.
+- Al menos una mayúscula, una minúscula, un número y un carácter especial.
+
+> 💡 El rol se detecta automáticamente al iniciar sesión: se lee desde el documento del usuario en la colección `users` de Firestore. Si el usuario no tiene documento, se crea como **Operador** (el Administrador puede cambiar el rol después en *Gestión de Usuarios*). Como respaldo sin conexión, un correo que empieza con `admin` se trata como Administrador.
+
+---
+
+## ✨ Módulos
+
+- **Módulo 0 — Autenticación y usuarios:** login con Firebase Auth, restablecimiento de contraseña y gestión de usuarios (solo Admin).
+- **Módulo 1 — Dashboard:** métricas de inventario y ventas, con vistas según el rol.
+- **Módulo 2 — Catálogos e inventario:** productos, categorías, SKU, precios, márgenes y niveles de stock (mínimo / máximo).
+- **Módulo 3 — Movimientos de almacén:** entradas y salidas con motivo obligatorio.
+- **Módulo 4 — Punto de venta e historial:** POS con descuento atómico de inventario y cancelación de folios (solo Admin).
+
+## 👥 Roles (RBAC)
+
+| Capacidad                          | Administrador | Operador |
+| ---------------------------------- | :-----------: | :------: |
+| Dashboard                          |       ✅       |    ✅     |
+| Punto de venta                     |       ✅       |    ✅     |
+| Registrar movimientos de stock     |       ✅       |    ✅     |
+| Gestionar productos y categorías   |       ✅       |    ❌     |
+| Cancelar ventas (folios)           |       ✅       |    ❌     |
+| Gestión de usuarios                |       ✅       |    ❌     |
+
+---
+
+## 🚀 Puesta en marcha
+
+### Requisitos
+
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (Dart `^3.12.2`).
+- Un proyecto de **Firebase** con **Authentication (Email/Password)** y **Cloud Firestore** habilitados.
+
+### Instalación
+
+```bash
+# 1. Clonar el repositorio
+git clone <URL-del-repo>
+cd pwa-pwa-equipo1
+
+# 2. Instalar dependencias
+flutter pub get
+
+# 3. Configurar Firebase (genera lib/firebase_options.dart)
+flutterfire configure
+
+# 4. Ejecutar
+flutter run -d chrome        # Web
+# flutter run                # Dispositivo / emulador
+```
+
+### Configuración de Firebase
+
+1. Habilita **Authentication → Email/Password**.
+2. Crea las cuentas de prueba (ver tabla de credenciales) desde la consola de Firebase.
+3. En **Cloud Firestore**, crea un documento por usuario en la colección `users` con la forma:
+
+   ```json
+   {
+     "name": "Administrador",
+     "email": "admin@auravitae.com",
+     "role": "admin",          // "admin" u "operator"
+     "active": true
+   }
+   ```
+
+---
+
+## 🛠️ Stack técnico
+
+| Área              | Tecnología                          |
+| ----------------- | ----------------------------------- |
+| Framework         | Flutter                             |
+| Estado            | `provider` (ChangeNotifier)         |
+| Autenticación     | `firebase_auth`                     |
+| Base de datos     | `cloud_firestore` (snapshots reactivos) |
+| Inicialización    | `firebase_core`                     |
+
+## 📁 Estructura
+
+```
+lib/
+├── main.dart                 # Entry point + AuthGate (enrutado por sesión)
+├── firebase_options.dart     # Config generada por FlutterFire
+├── core/                     # Tema y utilidades responsive
+├── models/                   # Modelos de dominio (toMap/fromMap)
+├── services/                 # AuthService + repositorio de inventario (Firestore)
+├── screens/                  # Login, dashboard, productos, movimientos, ventas, usuarios
+└── widgets/                  # Componentes compartidos
+```
+
+---
+
+*Proyecto académico — Equipo 1.*
