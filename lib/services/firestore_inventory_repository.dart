@@ -224,26 +224,42 @@ class FirestoreInventoryRepository extends InventoryRepository {
           productSnaps.add((item: item, ref: ref, product: product));
         }
 
-        // 2. Aplicar descuentos de stock y registrar la venta.
-        for (final entry in productSnaps) {
-          tx.update(entry.ref, {
-            'stock': entry.product.stock - entry.item.quantity,
-          });
-        }
-
         final folioNumber =
             (((counterSnap.data() ?? const {})['saleFolio'] ?? 0) as num)
                     .toInt() +
                 1;
+        final folio = 'V-${folioNumber.toString().padLeft(4, '0')}';
+        final now = DateTime.now();
+
+        // 2. Aplicar descuentos de stock, registrar salidas y la venta.
+        for (final entry in productSnaps) {
+          tx.update(entry.ref, {
+            'stock': entry.product.stock - entry.item.quantity,
+          });
+          tx.set(
+            _db.collection('movements').doc(),
+            StockMovement(
+              id: '',
+              productId: entry.product.id,
+              productName: entry.product.name,
+              type: MovementType.exit,
+              quantity: entry.item.quantity,
+              reason: 'Venta: $folio',
+              userName: userName,
+              date: now,
+            ).toMap(),
+          );
+        }
+
         tx.set(counterRef, {'saleFolio': folioNumber}, SetOptions(merge: true));
 
         final sale = Sale(
           id: '',
-          folio: 'V-${folioNumber.toString().padLeft(4, '0')}',
+          folio: folio,
           items: List.unmodifiable(items),
           paymentMethod: paymentMethod,
           userName: userName,
-          date: DateTime.now(),
+          date: now,
         );
         tx.set(_db.collection('sales').doc(), sale.toMap());
         return sale;

@@ -122,23 +122,9 @@ class _MovementFormScreenState extends State<MovementFormScreen> {
                   }),
                 ),
                 const SizedBox(height: 20),
-                DropdownButtonFormField<String>(
+                SearchableProductSelect(
+                  products: repo.products,
                   initialValue: _productId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Producto',
-                    prefixIcon: Icon(Icons.inventory_2_outlined),
-                  ),
-                  items: [
-                    for (final p in repo.products)
-                      DropdownMenuItem(
-                        value: p.id,
-                        child: Text(
-                          '${p.name} (stock: ${p.stock})',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
                   onChanged: (value) => setState(() => _productId = value),
                   validator: (v) =>
                       v == null ? 'Selecciona un producto' : null,
