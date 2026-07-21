@@ -1,7 +1,147 @@
+import 'dart:ui' show ImageFilter;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../core/app_theme.dart';
 import '../models/models.dart';
+
+/// Tarjeta con efecto glassmorphism del design system AURA VITAE.
+///
+/// Relleno blanco translúcido con gradiente sutil, borde luminoso y
+/// sombra suave sobre [AuraBackground]. Por rendimiento, el desenfoque
+/// real del fondo ([frosted]) está apagado por defecto: `BackdropFilter`
+/// es muy costoso en Flutter web y sobre un fondo estático el resultado
+/// visual es casi idéntico sin él. Actívalo solo cuando la tarjeta
+/// flote sobre contenido que se mueve por debajo.
+class GlassCard extends StatelessWidget {
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.borderRadius = 18,
+    this.padding,
+    this.blur = 16,
+    this.opacity = 0.55,
+    this.frosted = false,
+  });
+
+  final Widget child;
+  final double borderRadius;
+  final EdgeInsetsGeometry? padding;
+  final double blur;
+
+  /// Opacidad del relleno blanco (0-1). Más bajo = más transparente.
+  final double opacity;
+
+  /// `true` aplica desenfoque real del fondo (costoso; usar con medida).
+  final bool frosted;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: opacity + 0.15),
+            Colors.white.withValues(alpha: opacity - 0.10),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.70),
+          width: 1.2,
+        ),
+      ),
+      child: child,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.merlot.withValues(alpha: 0.10),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: frosted
+            ? BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: content,
+              )
+            : content,
+      ),
+    );
+  }
+}
+
+/// Fondo decorativo del shell: gradiente cálido con manchas de color
+/// difusas (peony/mauve/merlot) que hacen visible el efecto de vidrio
+/// de las [GlassCard] superpuestas.
+class AuraBackground extends StatelessWidget {
+  const AuraBackground({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF4ECE8), AppTheme.almond, Color(0xFFEDDEDA)],
+            ),
+          ),
+        ),
+        Positioned(
+          top: -120,
+          right: -80,
+          child: _blob(300, AppTheme.peony, 0.55),
+        ),
+        Positioned(
+          top: 260,
+          left: -140,
+          child: _blob(280, AppTheme.mauve, 0.22),
+        ),
+        Positioned(
+          bottom: -110,
+          right: 60,
+          child: _blob(320, AppTheme.merlot, 0.12),
+        ),
+        child,
+      ],
+    );
+  }
+
+  static Widget _blob(double size, Color color, double alpha) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: alpha),
+              color.withValues(alpha: 0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Tarjeta de indicador (KPI) para dashboards.
 class KpiCard extends StatelessWidget {
@@ -22,67 +162,65 @@ class KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 18),
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Montserrat',
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.14,
-                      color: AppTheme.mauve,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.01,
-                  color: AppTheme.cocoa,
-                ),
+                child: Icon(icon, color: color, size: 18),
               ),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                subtitle!,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 11,
-                  color: AppTheme.mauve,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.14,
+                    color: AppTheme.mauve,
+                  ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'Montserrat',
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.01,
+                color: AppTheme.cocoa,
+              ),
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                color: AppTheme.mauve,
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -135,6 +273,16 @@ class ProductImage extends StatelessWidget {
 
     if (imageUrl.trim().isEmpty) return fallback;
 
+    // Decodificar la imagen al tamaño mostrado (no a resolución completa):
+    // las fotos del catálogo pueden ser de 1000+ px y aquí se pintan como
+    // miniaturas; sin esto cada lista decodifica megapíxeles de más.
+    // Solo en plataformas nativas: en web el redimensionado fuerza la vía
+    // de decodificación con CORS y rompe las imágenes de Google Drive
+    // (que se muestran mediante el fallback de elemento <img>).
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final logicalWidth = w.isFinite ? w : (h.isFinite ? h * 2 : 300);
+    final cacheWidth = kIsWeb ? null : (logicalWidth * dpr).round();
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: Image.network(
@@ -142,6 +290,7 @@ class ProductImage extends StatelessWidget {
         width: w,
         height: h,
         fit: BoxFit.cover,
+        cacheWidth: cacheWidth,
         webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
         loadingBuilder: (context, child, progress) =>
             progress == null ? child : fallback,
@@ -160,9 +309,9 @@ class StockStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      StockStatus.ok  => ('En stock',   AppTheme.success),
+      StockStatus.ok => ('En stock', AppTheme.success),
       StockStatus.low => ('Stock bajo', AppTheme.mauve),
-      StockStatus.out => ('Agotado',    AppTheme.danger),
+      StockStatus.out => ('Agotado', AppTheme.danger),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -259,37 +408,42 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 52, color: AppTheme.peony),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'Montserrat',
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.06,
-                color: AppTheme.mauve,
-              ),
-            ),
-            if (message != null) ...[
-              const SizedBox(height: 6),
+      // FittedBox: si el espacio disponible es menor al contenido
+      // (p. ej. paneles compactos), se escala en lugar de desbordar.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 52, color: AppTheme.peony),
+              const SizedBox(height: 14),
               Text(
-                message!,
+                title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12,
+                  fontFamily: 'Montserrat',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.06,
                   color: AppTheme.mauve,
                 ),
               ),
+              if (message != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: AppTheme.mauve,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

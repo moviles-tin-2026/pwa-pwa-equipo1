@@ -1,12 +1,14 @@
 {
-    "name": "login_app",
-    "short_name": "login_app",
-    "start_url": ".",
+    "name": "AURA VITAE · PymeSync Skincare CRM",
+    "short_name": "Aura Vitae",
+    "description": "Control de inventarios y ventas para tu negocio de skincare, sincronizado en la nube.",
+    "lang": "es",
+    "start_url": "./",
+    "scope": "./",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F0E7E2",
+    "theme_color": "#5E3F44",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import AddProductModal from '../components/AddProductModal'
 import { useApp } from '../store/AppContext'
 import { currency, STATUS_LABEL, stockStatus } from '../store/helpers'
 import {
@@ -8,6 +9,7 @@ import {
   IconGrid,
   IconPlus,
   IconReceipt,
+  IconSearch,
   IconTrash,
 } from '../components/Icons'
 
@@ -16,6 +18,8 @@ const TAX_RATE = 0.08
 export default function Transactions() {
   const { products, cart, addToCart, changeQty, removeFromCart, clearCart, confirmSale } = useApp()
   const [done, setDone] = useState(false)
+  const [query, setQuery] = useState('')
+  const [showAddProduct, setShowAddProduct] = useState(false)
 
   const subtotal = useMemo(
     () => cart.reduce((sum, i) => sum + i.product.price * i.qty, 0),
@@ -31,11 +35,33 @@ export default function Transactions() {
     setTimeout(() => setDone(false), 2200)
   }
 
+  const filteredProducts = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return products
+
+    return products.filter((p) => {
+      const haystack = [p.name, p.sku, p.category, p.description]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [products, query])
+
+  const getProductCode = (product: { sku?: string; code?: string }) => product.sku || product.code || 'Sin código'
+
   return (
     <div className="page sale">
       <section className="sale__catalog">
         <div className="sale__catalog-head">
-          <h1>Catalog</h1>
+          <div>
+            <h1>Terminal de ventas</h1>
+            <p className="page__sub">Selecciona productos, ajusta cantidades y finaliza la venta con una vista más clara.</p>
+            <div className="sale__meta">
+              <span className="sale__meta-pill">Productos: {products.length}</span>
+              <span className="sale__meta-pill">Ticket: {currency(subtotal)}</span>
+            </div>
+          </div>
           <div className="sale__view-toggle">
             <button className="icon-btn icon-btn--bordered" aria-label="Filter">
               <IconFilter width={18} height={18} />
@@ -46,35 +72,57 @@ export default function Transactions() {
           </div>
         </div>
 
-        <div className="catalog-grid">
-          {products.map((p) => {
-            const status = stockStatus(p)
-            return (
-              <button
-                key={p.id}
-                className="catalog-card"
-                onClick={() => addToCart(p)}
-                disabled={status === 'out-of-stock'}
-              >
+        <label className="sale__search">
+          <IconSearch width={16} height={16} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por nombre, código o SKU"
+          />
+        </label>
+
+        {filteredProducts.length === 0 ? (
+          <div className="sale__empty sale__empty--compact">
+            <p>No hay productos con ese código o nombre.</p>
+            <button className="btn btn--ghost" type="button" onClick={() => setShowAddProduct(true)}>
+              Agregar producto
+            </button>
+          </div>
+        ) : (
+          <div className="catalog-grid">
+            {filteredProducts.map((p) => {
+              const status = stockStatus(p)
+              return (
+                <button
+                  key={p.id}
+                  className="catalog-card"
+                  onClick={() => addToCart(p)}
+                  disabled={status === 'out-of-stock'}
+                >
                 <div className="catalog-card__head">
                   <span className={`badge badge--${status}`}>{STATUS_LABEL[status]}</span>
-                  <span className="catalog-card__sku mono">{p.sku}</span>
+                  <span className="catalog-card__sku mono">{getProductCode(p)}</span>
                 </div>
                 <div className="catalog-card__media">
                   <img src={p.image} alt={p.name} loading="lazy" />
                 </div>
                 <h3 className="catalog-card__name">{p.name}</h3>
                 <p className="catalog-card__desc">{p.description}</p>
+                <div className="catalog-card__code mono">Código: {getProductCode(p)}</div>
                 <div className="catalog-card__price">{currency(p.price)}</div>
               </button>
             )
           })}
-        </div>
+          </div>
+        )}
       </section>
 
       <aside className="sale__panel">
         <div className="sale__panel-head">
-          <h2>Current Sale</h2>
+          <div>
+            <h2>Venta actual</h2>
+            <p className="panel__sub">Resumen rápido del ticket</p>
+          </div>
           <button
             className="icon-btn"
             aria-label="Clear sale"
@@ -98,6 +146,7 @@ export default function Transactions() {
                 <div className="sale-line__info">
                   <div className="sale-line__name">{i.product.name}</div>
                   <div className="sale-line__price mono">{currency(i.product.price)}</div>
+                  <div className="sale-line__code mono">{getProductCode(i.product)}</div>
                 </div>
                 <div className="sale-line__qty">
                   <button onClick={() => changeQty(i.product.id, -1)} aria-label="Decrease">−</button>
@@ -141,6 +190,14 @@ export default function Transactions() {
           </button>
         </div>
       </aside>
+
+      {showAddProduct && (
+        <AddProductModal
+          onClose={() => setShowAddProduct(false)}
+          initialName={query.trim()}
+          initialSku={query.trim()}
+        />
+      )}
     </div>
   )
 }
