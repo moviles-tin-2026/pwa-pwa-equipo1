@@ -300,6 +300,70 @@ class ProductImage extends StatelessWidget {
   }
 }
 
+/// Selector de producto con búsqueda por nombre o SKU.
+class SearchableProductSelect extends FormField<String> {
+  SearchableProductSelect({
+    super.key,
+    required List<Product> products,
+    super.initialValue,
+    super.validator,
+    super.onSaved,
+    ValueChanged<String?>? onChanged,
+    InputDecoration decoration = const InputDecoration(
+      labelText: 'Producto',
+      prefixIcon: Icon(Icons.inventory_2_outlined),
+    ),
+  }) : super(
+          builder: (state) {
+            final entries = [
+              for (final product in products)
+                DropdownMenuEntry<String>(
+                  value: product.id,
+                  label: _productOptionLabel(product),
+                ),
+            ];
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return DropdownMenu<String>(
+                  width: constraints.maxWidth,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  initialSelection: state.value,
+                  label: decoration.labelText == null
+                      ? null
+                      : Text(decoration.labelText!),
+                  leadingIcon: decoration.prefixIcon,
+                  hintText: 'Buscar por nombre o código…',
+                  helperText: decoration.helperText,
+                  errorText: state.errorText,
+                  menuHeight: 320,
+                  dropdownMenuEntries: entries,
+                  onSelected: (value) {
+                    state.didChange(value);
+                    onChanged?.call(value);
+                  },
+                  filterCallback: (items, filter) {
+                    final query = filter.trim().toLowerCase();
+                    if (query.isEmpty) return items;
+                    return items.where((item) {
+                      final product = products.firstWhere(
+                        (p) => p.id == item.value,
+                      );
+                      return product.name.toLowerCase().contains(query) ||
+                          product.sku.toLowerCase().contains(query);
+                    }).toList();
+                  },
+                );
+              },
+            );
+          },
+        );
+
+  static String _productOptionLabel(Product product) =>
+      '${product.name} · ${product.sku} · stock: ${product.stock}';
+}
+
 /// Chip de estado de stock (En stock / Stock bajo / Agotado).
 class StockStatusChip extends StatelessWidget {
   const StockStatusChip({super.key, required this.status});
