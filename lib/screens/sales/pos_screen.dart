@@ -147,9 +147,15 @@ class _PosScreenState extends State<PosScreen> {
           p.sku.toLowerCase().contains(query);
     }).toList();
 
-    final catalog = Column(
-      children: [
-        Padding(
+    // CustomScrollView en vez de Column+Expanded: en ventanas bajas (web/
+    // escritorio con poca altura) el banner + buscador + chips ya ocupaban
+    // casi todo el alto disponible dejando la grilla apachurrada en su
+    // propio scroll diminuto. Con slivers, todo el catálogo —encabezado y
+    // grilla— comparte un solo scroll de página.
+    final catalog = CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
           padding: EdgeInsets.fromLTRB(
             context.pagePadding,
             16,
@@ -214,91 +220,100 @@ class _PosScreenState extends State<PosScreen> {
               ],
             ),
           ),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.pagePadding,
-            8,
-            context.pagePadding,
-            8,
           ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) => setState(() => _search = value),
-            decoration: InputDecoration(
-              hintText: 'Buscar producto o escanear código…',
-              prefixIcon: const Icon(Icons.qr_code_scanner),
-              suffixIcon: _search.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _search = '');
-                      },
-                    ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.pagePadding,
+              8,
+              context.pagePadding,
+              8,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _search = value),
+              decoration: InputDecoration(
+                hintText: 'Buscar producto o escanear código…',
+                prefixIcon: const Icon(Icons.qr_code_scanner),
+                suffixIcon: _search.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _search = '');
+                        },
+                      ),
+              ),
             ),
           ),
         ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
-          child: SizedBox(
-            height: 40,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                FilterChip(
-                  label: const Text('Todas'),
-                  selected: _categoryId == null,
-                  onSelected: (_) => setState(() => _categoryId = null),
-                ),
-                for (final category in repo.categories) ...[
-                  const SizedBox(width: 8),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+            child: SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
                   FilterChip(
-                    label: Text(category.name),
-                    selected: _categoryId == category.id,
-                    onSelected: (selected) => setState(
-                      () => _categoryId = selected ? category.id : null,
-                    ),
+                    label: const Text('Todas'),
+                    selected: _categoryId == null,
+                    onSelected: (_) => setState(() => _categoryId = null),
                   ),
+                  for (final category in repo.categories) ...[
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: Text(category.name),
+                      selected: _categoryId == category.id,
+                      onSelected: (selected) => setState(
+                        () => _categoryId = selected ? category.id : null,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
-        Expanded(
-          child: products.isEmpty
-              ? const EmptyState(
-                  icon: Icons.search_off,
-                  title: 'Sin resultados',
-                )
-              : GridView.builder(
-                  padding: EdgeInsets.fromLTRB(
-                    context.pagePadding,
-                    8,
-                    context.pagePadding,
-                    isMobile ? 96 : 24,
-                  ),
-                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: isMobile ? 200 : 220,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    mainAxisExtent: 216,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final product = products[index];
-                    final inCart = _cart[product.id] ?? 0;
-                    final available = product.stock - inCart;
-                    return _PosProductCard(
-                      product: product,
-                      inCart: inCart,
-                      available: available,
-                      onTap: available > 0 ? () => _addToCart(product) : null,
-                    );
-                  },
-                ),
-        ),
+        if (products.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: EmptyState(
+              icon: Icons.search_off,
+              title: 'Sin resultados',
+            ),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              context.pagePadding,
+              8,
+              context.pagePadding,
+              isMobile ? 96 : 24,
+            ),
+            sliver: SliverGrid.builder(
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: isMobile ? 200 : 220,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: 216,
+              ),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                final inCart = _cart[product.id] ?? 0;
+                final available = product.stock - inCart;
+                return _PosProductCard(
+                  product: product,
+                  inCart: inCart,
+                  available: available,
+                  onTap: available > 0 ? () => _addToCart(product) : null,
+                );
+              },
+            ),
+          ),
       ],
     );
 

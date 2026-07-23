@@ -29,6 +29,24 @@ class SalesScreen extends StatelessWidget {
             child: TabBar(
               labelColor: AppTheme.merlot,
               unselectedLabelColor: AppTheme.mauve,
+              // indicatorSize.tab + padding cero: el fondo rosa cubre la
+              // celda completa de la pestaña, no solo el ícono/texto.
+              // splashBorderRadius y overlayColor evitan que el hover/
+              // splash por defecto de Material dibuje una forma distinta
+              // (rectangular) encima del indicador redondeado.
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorPadding: EdgeInsets.zero,
+              dividerColor: Colors.transparent,
+              splashBorderRadius: const BorderRadius.all(Radius.circular(14)),
+              overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return AppTheme.peony.withValues(alpha: 0.55);
+                }
+                if (states.contains(WidgetState.hovered)) {
+                  return AppTheme.peony.withValues(alpha: 0.3);
+                }
+                return Colors.transparent;
+              }),
               indicator: BoxDecoration(
                 color: AppTheme.peony,
                 borderRadius: BorderRadius.all(Radius.circular(14)),
