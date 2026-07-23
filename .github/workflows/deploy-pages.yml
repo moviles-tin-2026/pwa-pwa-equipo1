@@ -1,0 +1,60 @@
+name: Rebuild GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "assets/**"
+      - "canvaskit/**"
+      - "icons/**"
+      - "favicon.png"
+      - "flutter.js"
+      - "flutter_bootstrap.js"
+      - "flutter_service_worker.js"
+      - "index.html"
+      - "main.dart.js"
+      - "manifest.json"
+      - "sw.js"
+      - "version.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-rebuild
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+      - run: flutter build web --release --base-href "/pwa-pwa-equipo1/"
+
+      - name: Copiar build al root del repo
+        run: |
+          rm -rf assets canvaskit icons
+          cp -r build/web/assets build/web/canvaskit build/web/icons .
+          cp build/web/favicon.png build/web/flutter.js build/web/flutter_bootstrap.js \
+             build/web/flutter_service_worker.js build/web/index.html build/web/main.dart.js \
+             build/web/manifest.json build/web/sw.js build/web/version.json .
+
+      - name: Commit y push del build a main
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "build: actualizar GitHub Pages con últimos cambios [automatizado]"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
