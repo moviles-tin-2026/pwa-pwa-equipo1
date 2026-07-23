@@ -27,10 +27,15 @@ class SalesHistoryScreen extends StatelessWidget {
     final activeSales = sales.where((s) => !s.cancelled).toList();
     final total = activeSales.fold<double>(0, (sum, s) => sum + s.total);
 
+    // CustomScrollView en vez de Column+Expanded: mismo criterio que en
+    // Movimientos y la Terminal de venta — encabezado y lista comparten un
+    // solo scroll de página en vez de que la lista quede atrapada en un
+    // Expanded diminuto cuando la ventana es baja.
     return PageContainer(
-      child: Column(
-        children: [
-          Padding(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
             padding: EdgeInsets.fromLTRB(padding, 16, padding, 0),
             child: Container(
               padding: const EdgeInsets.all(18),
@@ -115,24 +120,29 @@ class SalesHistoryScreen extends StatelessWidget {
                 ],
               ),
             ),
+            ),
           ),
-          Expanded(
-            child: sales.isEmpty
-                ? EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: isAdmin
-                        ? 'Sin ventas registradas'
-                        : 'Aún no hay ventas hoy',
-                    message: 'Las ventas del POS aparecerán aquí.',
-                  )
-                : ListView.separated(
-                    padding: EdgeInsets.fromLTRB(padding, 16, padding, 24),
-                    itemCount: sales.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) =>
-                        _SaleCard(sale: sales[index], isAdmin: isAdmin),
-                  ),
-          ),
+          if (sales.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: isAdmin
+                    ? 'Sin ventas registradas'
+                    : 'Aún no hay ventas hoy',
+                message: 'Las ventas del POS aparecerán aquí.',
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(padding, 16, padding, 24),
+              sliver: SliverList.separated(
+                itemCount: sales.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) =>
+                    _SaleCard(sale: sales[index], isAdmin: isAdmin),
+              ),
+            ),
         ],
       ),
     );
