@@ -316,7 +316,11 @@ class _AppShellState extends State<AppShell> {
               onTap: () {
                 controller.closeView('');
                 FocusScope.of(context).unfocus();
-                _goTo(AppSection.inventory, searchQuery: product.name);
+                final query = controller.text.trim();
+                _goTo(
+                  AppSection.inventory,
+                  searchQuery: query.isEmpty ? product.name : query,
+                );
               },
             ),
         ];

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +7,7 @@ import '../../core/responsive.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
 import '../../services/inventory_repository.dart';
+import '../../utils/print_helper.dart';
 import '../../widgets/common.dart';
 
 /// Módulo 4 — Terminal de Venta (POS, Ambos roles).
@@ -125,9 +127,28 @@ class _PosScreenState extends State<PosScreen> {
           textAlign: TextAlign.center,
         ),
         actions: [
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Aceptar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              if (!kIsWeb) {
+                showErrorSnackBar(
+                  context,
+                  'La impresión del ticket solo está disponible en la versión web.',
+                );
+                return;
+              }
+              try {
+                printTicket(sale);
+              } catch (_) {
+                showErrorSnackBar(context, 'Error al generar el ticket.');
+              }
+              Navigator.pop(dialogContext);
+            },
+            icon: const Icon(Icons.print_outlined),
+            label: const Text('Imprimir ticket'),
           ),
         ],
       ),
@@ -545,8 +566,26 @@ class _PosScreenState extends State<PosScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
+                'Subtotal',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                formatCurrency(total),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.mauve,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
                 'Total',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
               Text(
                 formatCurrency(total),
@@ -559,31 +598,37 @@ class _PosScreenState extends State<PosScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.success,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: items.isEmpty || _processing
-                ? null
-                : () async {
-                    if (sheetContext != null) Navigator.pop(sheetContext);
-                    await _checkout();
-                  },
-            icon: _processing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.check_circle_outline),
-            label: const Text(
-              'Finalizar venta',
-              style: TextStyle(fontSize: 16),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.success,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: items.isEmpty || _processing
+                      ? null
+                      : () async {
+                          if (sheetContext != null) Navigator.pop(sheetContext);
+                          await _checkout();
+                        },
+                  icon: _processing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_outline),
+                  label: const Text(
+                    'Finalizar venta',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
