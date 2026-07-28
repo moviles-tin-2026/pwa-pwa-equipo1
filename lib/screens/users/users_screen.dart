@@ -100,7 +100,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: history.length,
-                  separatorBuilder: (_, __) => const Divider(height: 8),
+                  separatorBuilder: (_, _) => const Divider(height: 8),
                   itemBuilder: (context, i) {
                     final entry = history[i];
                     return Row(
@@ -108,7 +108,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       children: [
                         Text(entry.action),
                         Text(
-                          TimeOfDay.fromDateTime(entry.time).format(context) + ' · ${entry.time.day}/${entry.time.month}',
+                          '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                         ),
                       ],
