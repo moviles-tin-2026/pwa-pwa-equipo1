@@ -1,58 +1,11 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
-import '../core/app_theme.dart';
 import '../models/models.dart';
+import 'ticket_builder.dart';
 
-/// Abre una ventana con el ticket de venta en formato angosto (80mm, como
-/// una impresora térmica de tickets) y lanza print().
+/// Abre una ventana con el ticket de venta y lanza print().
 void printTicket(Sale sale) {
-  final buffer = StringBuffer();
-  buffer.writeln('<html><head><meta charset="utf-8"><title>Ticket ${sale.folio}</title>');
-  buffer.writeln('''<style>
-    @page { size: 80mm auto; margin: 3mm; }
-    body { font-family: monospace; font-size: 12px; width: 280px; margin: 0 auto; }
-    .center { text-align: center; }
-    .row { display: flex; justify-content: space-between; gap: 8px; }
-    .muted { color: #444; font-size: 11px; }
-    hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
-    table.items { width: 100%; border-collapse: collapse; }
-    table.items td { padding: 1px 0; vertical-align: top; }
-    .total { font-weight: 800; font-size: 14px; }
-  </style>''');
-  buffer.writeln('</head><body>');
-  buffer.writeln('<div class="center">');
-  buffer.writeln('<h3 style="margin:2px 0;">Mi Sucursal</h3>');
-  buffer.writeln('<div>Folio: ${sale.folio}</div>');
-  buffer.writeln('<div>${formatDateTime(sale.date.toLocal())}</div>');
-  buffer.writeln('<div>Atendió: ${sale.userName}</div>');
-  buffer.writeln('</div>');
-  buffer.writeln('<hr>');
-  buffer.writeln('<table class="items">');
-  for (final it in sale.items) {
-    buffer.writeln('<tr><td colspan="2">${it.productName}</td></tr>');
-    buffer.writeln('<tr>');
-    buffer.writeln(
-      '<td class="muted">${it.quantity} x ${formatCurrency(it.unitPrice)}</td>',
-    );
-    buffer.writeln(
-      '<td style="text-align:right;">${formatCurrency(it.subtotal)}</td>',
-    );
-    buffer.writeln('</tr>');
-  }
-  buffer.writeln('</table>');
-  buffer.writeln('<hr>');
-  buffer.writeln(
-    '<div class="row"><div>Subtotal</div><div>${formatCurrency(sale.total)}</div></div>',
-  );
-  buffer.writeln(
-    '<div class="row total"><div>Total</div><div>${formatCurrency(sale.total)}</div></div>',
-  );
-  buffer.writeln(
-    '<div class="row"><div>Pago</div><div>${sale.paymentMethod.label}</div></div>',
-  );
-  buffer.writeln('<hr>');
-  buffer.writeln('<div class="center">Gracias por su compra</div>');
-  buffer.writeln('</body></html>');
+  final content = buildTicketHtml(sale);
 
   // Abrir about:blank explícitamente y escribir el contenido
   final win = html.window.open('about:blank', '_blank');
@@ -60,7 +13,7 @@ void printTicket(Sale sale) {
   try {
     // Asegurar que el documento esté abierto para escritura
     w.document.open();
-    w.document.write(buffer.toString());
+    w.document.write(content);
     w.document.close();
     // Dar foco a la ventana y esperar un momento para que renderice
     try {
