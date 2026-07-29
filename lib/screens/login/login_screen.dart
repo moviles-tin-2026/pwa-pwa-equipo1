@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,204 +11,234 @@ import '../../widgets/common.dart';
 /// Módulo 0 — Pantalla de Login.
 ///
 /// Formulario con Firebase Authentication (Email/Password) y redirección
-/// automática según el rol detectado. En pantallas anchas (web/escritorio)
-/// muestra un panel de marca a la izquierda; en móvil, formulario a
-/// pantalla completa (mobile-first).
+/// automática según el rol detectado (ver `AuthGate` en main.dart).
+/// Fotografía de producto a pantalla completa con una tarjeta de vidrio
+/// (glassmorphism) flotando encima — misma estética en móvil y escritorio.
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
+
+  static const _backgroundAsset =
+      'assets/images/AuraVitae-Login-backgroundImg.webp';
 
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width >= Breakpoints.tablet;
 
     return Scaffold(
-      backgroundColor: AppTheme.almond,
-      body: isWide
-          ? Row(
-              children: [
-                const Expanded(child: _BrandPanel()),
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(48),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: const _LoginForm(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
-                  ),
-                  child: const Column(
-                    children: [
-                      _BrandHeader(),
-                      SizedBox(height: 32),
-                      _LoginForm(),
-                    ],
-                  ),
-                ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            _backgroundAsset,
+            fit: BoxFit.cover,
+            alignment: Alignment.centerLeft,
+          ),
+          // Oscurece hacia la derecha para separar la tarjeta de vidrio
+          // del bodegón fotográfico y garantizar contraste de texto.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                stops: const [0.25, 1],
+                colors: [
+                  Colors.transparent,
+                  AppTheme.cocoa.withValues(alpha: 0.70),
+                ],
               ),
             ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0, 0.4, 1],
+                colors: [
+                  AppTheme.cocoa.withValues(alpha: 0.35),
+                  Colors.transparent,
+                  AppTheme.cocoa.withValues(alpha: 0.45),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: isWide
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: _WideLayout(),
+                  )
+                : const Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
+                    child: _CompactLayout(),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// Panel lateral de marca (solo web/escritorio).
-class _BrandPanel extends StatelessWidget {
-  const _BrandPanel();
+/// Escritorio/tablet: panel de vidrio con la marca saliendo del borde
+/// izquierdo (sobre el bodegón), tarjeta flotando a la derecha sobre el
+/// muro despejado de la fotografía.
+class _WideLayout extends StatelessWidget {
+  const _WideLayout();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.merlot, Color(0xFF7A4A50)],
+    return Stack(
+      children: [
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: _BrandGlassPanel(),
         ),
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(48),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: 52,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'AURA VITAE',
-                style: TextStyle(
-                  fontFamily: 'Montserrat',
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'PymeSync · Skincare Management',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  color: Colors.white.withValues(alpha: 0.80),
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Gestión inteligente para tu\nnegocio de skincare.',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  color: Colors.white.withValues(alpha: 0.80),
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 40),
-              for (final feature in const [
-                'Inventario en tiempo real con Cloud Firestore',
-                'Punto de venta con transacciones atómicas',
-                'Roles diferenciados: Administrador y Operador',
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.spa_outlined,
-                        color: Colors.white70,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          feature,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 56),
+            child: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(child: _LoginForm()),
+            ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Placa de vidrio que ancla el texto de marca al borde izquierdo de la
+/// pantalla — sin bordes redondeados en ese lado, como si emergiera de él.
+class _BrandGlassPanel extends StatelessWidget {
+  const _BrandGlassPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.horizontal(right: Radius.circular(28)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.fromLTRB(40, 40, 32, 40),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.22),
+                Colors.white.withValues(alpha: 0.08),
+              ],
+            ),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+              right: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+            ),
+          ),
+          child: const _BrandMark(),
         ),
       ),
     );
   }
 }
 
-/// Encabezado compacto de marca (móvil).
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
+/// Móvil: marca compacta arriba y tarjeta centrada verticalmente.
+class _CompactLayout extends StatelessWidget {
+  const _CompactLayout();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _BrandMark(compact: true),
+                SizedBox(height: 28),
+                _LoginForm(),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Marca mínima sobre la fotografía: insignia de vidrio + wordmark.
+class _BrandMark extends StatelessWidget {
+  const _BrandMark({this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: compact
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          width: compact ? 48 : 56,
+          height: compact ? 48 : 56,
           decoration: BoxDecoration(
-            color: AppTheme.merlot,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.merlot.withValues(alpha: 0.25),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
           ),
-          child: const Icon(
-            Icons.auto_awesome,
-            size: 40,
+          child: Icon(
+            Icons.spa_outlined,
+            size: compact ? 22 : 26,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
+        const SizedBox(height: 20),
+        Text(
           'AURA VITAE',
-          textAlign: TextAlign.center,
+          textAlign: compact ? TextAlign.center : TextAlign.start,
           style: TextStyle(
             fontFamily: 'Montserrat',
-            fontSize: 24,
+            color: Colors.white,
+            fontSize: compact ? 22 : 30,
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.14,
-            color: AppTheme.merlot,
+            letterSpacing: 0.16,
           ),
         ),
-        const SizedBox(height: 4),
-        const Text(
+        const SizedBox(height: 8),
+        Text(
           'PymeSync · Skincare Management',
-          textAlign: TextAlign.center,
+          textAlign: compact ? TextAlign.center : TextAlign.start,
           style: TextStyle(
             fontFamily: 'Inter',
-            fontSize: 12,
-            color: AppTheme.mauve,
+            color: Colors.white.withValues(alpha: 0.82),
+            fontSize: compact ? 12 : 14,
           ),
         ),
+        if (!compact) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: 320,
+            child: Text(
+              'Gestión inteligente de inventario, ventas y equipo '
+              'para tu negocio de skincare.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Colors.white.withValues(alpha: 0.72),
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -299,9 +331,16 @@ class _LoginFormState extends State<_LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return GlassCard(
+      borderRadius: 24,
+      blur: 28,
+      opacity: 0.80,
+      frosted: true,
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          inputDecorationTheme: _glassInputTheme(context),
+        ),
         child: Form(
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -310,14 +349,19 @@ class _LoginFormState extends State<_LoginForm> {
             children: [
               const Text(
                 'Iniciar sesión',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.cocoa,
+                ),
               ),
               const SizedBox(height: 4),
-              Text(
+              const Text(
                 'Tu rol se detecta automáticamente al ingresar',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 13, color: AppTheme.mauve),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               TextFormField(
                 controller: _emailController,
                 focusNode: _emailFocusNode,
@@ -399,5 +443,22 @@ class _LoginFormState extends State<_LoginForm> {
       ),
     );
   }
-}
 
+  /// Campos translúcidos para que se lean como parte del vidrio en vez
+  /// de cajas sólidas `almond` (relleno del tema global de la app).
+  InputDecorationThemeData _glassInputTheme(BuildContext context) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.7)),
+    );
+    return Theme.of(context).inputDecorationTheme.copyWith(
+      fillColor: Colors.white.withValues(alpha: 0.55),
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.merlot, width: 2),
+      ),
+    );
+  }
+}
