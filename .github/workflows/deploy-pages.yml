@@ -13,10 +13,8 @@ on:
       - "flutter_service_worker.js"
       - "index.html"
       - "main.dart.js"
-      - "main.dart.js.map"
       - "main.dart.mjs"
       - "main.dart.wasm"
-      - "main.dart.wasm.map"
       - "manifest.json"
       - "sw.js"
       - "version.json"
@@ -46,11 +44,14 @@ jobs:
 
       - run: flutter test
 
-      # `--source-maps` es para el audit "Missing source maps for large
-      # first-party JavaScript" de Best Practices. Los navegadores solo
-      # descargan los .map con DevTools abierto, así que no pesan en la
-      # carga real; el costo es que suman ~6 MB a cada commit del build.
-      - run: flutter build web --wasm --source-maps --release --base-href "/pwa-pwa-equipo1/"
+      # Sin `--source-maps` a propósito. Se probó para el audit "Missing
+      # source maps for large first-party JavaScript" de Best Practices y no
+      # lo resuelve: en la ruta `--wasm` el JS que el navegador ejecuta es
+      # `main.dart.mjs`, y Flutter no emite mapa para él. La bandera solo
+      # generaba mapas de `main.dart.js` (el fallback que en esta ruta nadie
+      # descarga) y de `main.dart.wasm` (que no cuenta, el audit es de
+      # JavaScript), a cambio de ~6 MB en cada commit del build.
+      - run: flutter build web --wasm --release --base-href "/pwa-pwa-equipo1/"
 
       # Sin esto el caché conserva su nombre entre builds y los navegadores
       # que ya visitaron el sitio siguen sirviendo el main.dart.js viejo.
@@ -75,7 +76,6 @@ jobs:
           cp build/web/favicon.png build/web/flutter.js build/web/flutter_bootstrap.js \
              build/web/flutter_service_worker.js build/web/index.html build/web/main.dart.js \
              build/web/main.dart.wasm build/web/main.dart.mjs \
-             build/web/main.dart.js.map build/web/main.dart.wasm.map \
              build/web/manifest.json build/web/sw.js build/web/version.json .
 
       - name: Commit y push del build a main
