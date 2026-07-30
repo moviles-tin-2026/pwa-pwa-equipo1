@@ -16,13 +16,29 @@
  * del commit antes de publicar (ver `.github/workflows/deploy-pages.yml`);
  * el valor de abajo es solo el de desarrollo local.
  */
-const CACHE_VERSION = 'aura-vitae-f0b3d9a';
+const CACHE_VERSION = 'aura-vitae-ad8eadb';
 
+// Solo el shell ligero (~400 KB). Los binarios pesados quedan FUERA a
+// propósito: `main.dart.wasm` (2.7 MB), `main.dart.js` (3.2 MB, el
+// fallback para navegadores sin WasmGC), `canvaskit/skwasm.wasm` (3.5 MB)
+// y `canvaskit/canvaskit.wasm` (6.9 MB) suman 17 MB, de los cuales cada
+// navegador ejecuta menos de la mitad: usa `main.dart.wasm` + skwasm, o
+// `main.dart.js` + canvaskit, nunca los cuatro.
+//
+// Dos razones para no precargarlos:
+//  1. `addAll` es atómico. Un timeout en cualquiera de esos 17 MB tumba la
+//     instalación completa del service worker, sin error visible, y te
+//     quedas sin offline.
+//  2. La página los pide por su cuenta al arrancar y esas peticiones ya
+//     pasan por el fetch handler de abajo, que las cachea. Precargarlas
+//     aquí además hace que el visitante las baje dos veces, compitiendo
+//     por ancho de banda con la carga que está midiendo el usuario.
+//
+// El costo: la primera visita no queda offline-capable hasta terminar de
+// cargar la página. En la práctica es el mismo instante.
 const APP_SHELL = [
   './',
   'index.html',
-  'main.dart.js',
-  'main.dart.wasm',
   'main.dart.mjs',
   'flutter.js',
   'flutter_bootstrap.js',
@@ -33,9 +49,7 @@ const APP_SHELL = [
   'icons/Icon-maskable-192.png',
   'icons/Icon-maskable-512.png',
   'canvaskit/skwasm.js',
-  'canvaskit/skwasm.wasm',
   'canvaskit/canvaskit.js',
-  'canvaskit/canvaskit.wasm',
 ];
 
 self.addEventListener('install', (event) => {
