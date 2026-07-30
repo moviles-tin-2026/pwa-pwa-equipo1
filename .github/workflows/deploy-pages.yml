@@ -13,8 +13,10 @@ on:
       - "flutter_service_worker.js"
       - "index.html"
       - "main.dart.js"
+      - "main.dart.js.map"
       - "main.dart.mjs"
       - "main.dart.wasm"
+      - "main.dart.wasm.map"
       - "manifest.json"
       - "sw.js"
       - "version.json"
@@ -44,7 +46,11 @@ jobs:
 
       - run: flutter test
 
-      - run: flutter build web --wasm --release --base-href "/pwa-pwa-equipo1/"
+      # `--source-maps` es para el audit "Missing source maps for large
+      # first-party JavaScript" de Best Practices. Los navegadores solo
+      # descargan los .map con DevTools abierto, así que no pesan en la
+      # carga real; el costo es que suman ~6 MB a cada commit del build.
+      - run: flutter build web --wasm --source-maps --release --base-href "/pwa-pwa-equipo1/"
 
       # Sin esto el caché conserva su nombre entre builds y los navegadores
       # que ya visitaron el sitio siguen sirviendo el main.dart.js viejo.
@@ -69,6 +75,7 @@ jobs:
           cp build/web/favicon.png build/web/flutter.js build/web/flutter_bootstrap.js \
              build/web/flutter_service_worker.js build/web/index.html build/web/main.dart.js \
              build/web/main.dart.wasm build/web/main.dart.mjs \
+             build/web/main.dart.js.map build/web/main.dart.wasm.map \
              build/web/manifest.json build/web/sw.js build/web/version.json .
 
       - name: Commit y push del build a main
