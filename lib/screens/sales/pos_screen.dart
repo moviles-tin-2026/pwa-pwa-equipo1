@@ -140,12 +140,25 @@ class _PosScreenState extends State<PosScreen> {
                 );
                 return;
               }
+              var launched = false;
               try {
-                printTicket(sale);
+                launched = printTicket(
+                  sale,
+                  skuByProductId: {
+                    for (final p in repo.products) p.id: p.sku,
+                  },
+                );
               } catch (_) {
-                showErrorSnackBar(context, 'Error al generar el ticket.');
+                launched = false;
               }
               Navigator.pop(dialogContext);
+              if (!launched) {
+                showErrorSnackBar(
+                  context,
+                  'No se pudo abrir el ticket. Permite las ventanas '
+                  'emergentes de este sitio e inténtalo de nuevo.',
+                );
+              }
             },
             icon: const Icon(Icons.print_outlined),
             label: const Text('Imprimir ticket'),
