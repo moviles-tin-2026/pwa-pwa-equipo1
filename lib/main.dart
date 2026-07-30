@@ -10,12 +10,22 @@ import 'services/auth_service.dart';
 import 'services/firestore_inventory_repository.dart';
 import 'services/inventory_repository.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
+
+  // Sin `await` a propósito. En web, `initializeApp` dispara una cadena de
+  // red encadenada (el iframe de Auth y luego `getProjectConfig`) que mide
+  // ~2.5 s en Lighthouse; esperarla aquí retrasaba el primer frame de la
+  // app por ese mismo tiempo y era lo que sostenía el Speed Index en ~10 s.
+  //
+  // Se arranca la inicialización y se pinta de inmediato. Quien necesita
+  // Firebase espera este `Future` en el punto exacto donde lo usa
+  // (ver `AuthService`), no antes de dibujar.
+  final firebaseReady = Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const PymeSyncApp());
+
+  runApp(PymeSyncApp(firebaseReady: firebaseReady));
 }
 
 /// PyME-Sync — Control de Inventarios y Ventas Multiplataforma.
@@ -30,12 +40,15 @@ Future<void> main() async {
 /// Todos los datos viven en Cloud Firestore (proyecto PyME) con
 /// sincronización reactiva mediante snapshots.
 class PymeSyncApp extends StatelessWidget {
-  const PymeSyncApp({super.key});
+  const PymeSyncApp({super.key, required this.firebaseReady});
+
+  /// Inicialización de Firebase en curso, arrancada por `main` sin esperar.
+  final Future<void> firebaseReady;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AuthService(),
+      create: (_) => AuthService(ready: firebaseReady),
       child: const AuthGate(),
     );
   }
