@@ -42,7 +42,7 @@ jobs:
 
       - run: flutter test
 
-      - run: flutter build web --release --base-href "/pwa-pwa-equipo1/"
+      - run: flutter build web --wasm --release --base-href "/pwa-pwa-equipo1/"
 
       # Sin esto el caché conserva su nombre entre builds y los navegadores
       # que ya visitaron el sitio siguen sirviendo el main.dart.js viejo.
@@ -66,6 +66,7 @@ jobs:
           cp -r build/web/assets build/web/canvaskit build/web/icons .
           cp build/web/favicon.png build/web/flutter.js build/web/flutter_bootstrap.js \
              build/web/flutter_service_worker.js build/web/index.html build/web/main.dart.js \
+             build/web/main.dart.wasm build/web/main.dart.mjs \
              build/web/manifest.json build/web/sw.js build/web/version.json .
 
       - name: Commit y push del build a main

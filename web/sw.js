@@ -22,6 +22,8 @@ const APP_SHELL = [
   './',
   'index.html',
   'main.dart.js',
+  'main.dart.wasm',
+  'main.dart.mjs',
   'flutter.js',
   'flutter_bootstrap.js',
   'manifest.json',
@@ -30,6 +32,10 @@ const APP_SHELL = [
   'icons/Icon-512.png',
   'icons/Icon-maskable-192.png',
   'icons/Icon-maskable-512.png',
+  'canvaskit/skwasm.js',
+  'canvaskit/skwasm.wasm',
+  'canvaskit/canvaskit.js',
+  'canvaskit/canvaskit.wasm',
 ];
 
 self.addEventListener('install', (event) => {
