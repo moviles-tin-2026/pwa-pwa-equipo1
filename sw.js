@@ -16,7 +16,7 @@
  * del commit antes de publicar (ver `.github/workflows/deploy-pages.yml`);
  * el valor de abajo es solo el de desarrollo local.
  */
-const CACHE_VERSION = 'aura-vitae-8debbeb';
+const CACHE_VERSION = 'aura-vitae-19c7e0c';
 
 const APP_SHELL = [
   './',
