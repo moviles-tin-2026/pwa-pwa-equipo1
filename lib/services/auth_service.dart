@@ -13,14 +13,38 @@ import '../models/models.dart';
 ///    Operador (el Admin puede cambiarlo después en Gestión de Usuarios).
 /// 3. Redirige según el rol detectado (lo hace el AuthGate de main.dart).
 class AuthService extends ChangeNotifier {
+  /// [ready] es el `Future` de `Firebase.initializeApp`, que `main` arranca
+  /// sin esperar para no retrasar el primer frame. Cada operación que toca
+  /// Firebase lo espera antes de usarlo. En la práctica ya está resuelto
+  /// mucho antes de que alguien termine de escribir sus credenciales.
+  ///
+  /// Omitirlo (los tests lo hacen) equivale a "Firebase ya está listo".
+  AuthService({Future<void>? ready}) : _ready = ready ?? Future<void>.value();
+
+  final Future<void> _ready;
+
   AppUser? _currentUser;
 
   AppUser? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
 
+  /// Espera a que Firebase esté inicializado, traduciendo un fallo de
+  /// arranque a un mensaje de UI en lugar de un error crudo.
+  Future<void> _ensureReady() async {
+    try {
+      await _ready;
+    } catch (_) {
+      throw const AuthException(
+        'No se pudo conectar con el servidor. Revisa tu conexión '
+        'e intenta de nuevo.',
+      );
+    }
+  }
+
   /// Inicia sesión. Lanza [AuthException] con un mensaje listo para UI.
   Future<AppUser> signIn(String email, String password) async {
+    await _ensureReady();
     final normalized = email.trim().toLowerCase();
 
     try {
@@ -94,10 +118,12 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> sendPasswordReset(String email) async {
+    await _ensureReady();
     await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
   }
 
   Future<void> signOut() async {
+    await _ensureReady();
     await FirebaseAuth.instance.signOut();
     _currentUser = null;
     notifyListeners();

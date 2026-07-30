@@ -40,12 +40,25 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // `authDomain` se omite a propósito (lo normal es que flutterfire lo
+  // genere aquí). El SDK JS solo lo necesita para flujos OAuth de
+  // popup/redirect: con él presente carga `<authDomain>/__/auth/iframe.js`
+  // durante la inicialización, y en Lighthouse eso medía 92 KiB y 2,272 ms
+  // encadenados en el critical path. Esta app autentica únicamente con
+  // email y contraseña (`signInWithEmailAndPassword`), que va directo a
+  // identitytoolkit y no pasa por el iframe.
+  //
+  // El correo de recuperación tampoco depende de esto: la URL de acción
+  // vive en la consola de Firebase, no en el cliente.
+  //
+  // Si algún día se agrega login con Google u otro proveedor OAuth, hay que
+  // devolver esta línea:
+  //   authDomain: 'pyme-47f32.firebaseapp.com',
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAB3VYIR-uNpat4DWQIcyc_PbugSljZzKM',
     appId: '1:144378392459:web:1e4d69d2a745fda6abc98e',
     messagingSenderId: '144378392459',
     projectId: 'pyme-47f32',
-    authDomain: 'pyme-47f32.firebaseapp.com',
     storageBucket: 'pyme-47f32.firebasestorage.app',
   );
 
