@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +7,7 @@ import '../../core/responsive.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
 import '../../services/inventory_repository.dart';
+import '../../utils/print_helper.dart';
 import '../../widgets/common.dart';
 import '../shell/app_shell.dart';
 
@@ -27,10 +29,15 @@ class SalesHistoryScreen extends StatelessWidget {
     final activeSales = sales.where((s) => !s.cancelled).toList();
     final total = activeSales.fold<double>(0, (sum, s) => sum + s.total);
 
+    // CustomScrollView en vez de Column+Expanded: mismo criterio que en
+    // Movimientos y la Terminal de venta — encabezado y lista comparten un
+    // solo scroll de página en vez de que la lista quede atrapada en un
+    // Expanded diminuto cuando la ventana es baja.
     return PageContainer(
-      child: Column(
-        children: [
-          Padding(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
             padding: EdgeInsets.fromLTRB(padding, 16, padding, 0),
             child: Container(
               padding: const EdgeInsets.all(18),
@@ -115,24 +122,29 @@ class SalesHistoryScreen extends StatelessWidget {
                 ],
               ),
             ),
+            ),
           ),
-          Expanded(
-            child: sales.isEmpty
-                ? EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: isAdmin
-                        ? 'Sin ventas registradas'
-                        : 'Aún no hay ventas hoy',
-                    message: 'Las ventas del POS aparecerán aquí.',
-                  )
-                : ListView.separated(
-                    padding: EdgeInsets.fromLTRB(padding, 16, padding, 24),
-                    itemCount: sales.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) =>
-                        _SaleCard(sale: sales[index], isAdmin: isAdmin),
-                  ),
-          ),
+          if (sales.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: EmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: isAdmin
+                    ? 'Sin ventas registradas'
+                    : 'Aún no hay ventas hoy',
+                message: 'Las ventas del POS aparecerán aquí.',
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(padding, 16, padding, 24),
+              sliver: SliverList.separated(
+                itemCount: sales.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) =>
+                    _SaleCard(sale: sales[index], isAdmin: isAdmin),
+              ),
+            ),
         ],
       ),
     );
@@ -334,8 +346,17 @@ class _SaleCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _reprint(sheetContext, context),
+                  icon: const Icon(Icons.print_outlined),
+                  label: const Text('Reimprimir ticket'),
+                ),
+              ),
               if (isAdmin && !sale.cancelled) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -356,6 +377,37 @@ class _SaleCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Reimprime el ticket de un folio ya guardado: los datos salen de la
+  /// misma venta de Firestore y el SKU se resuelve contra el catálogo.
+  void _reprint(BuildContext sheetContext, BuildContext pageContext) {
+    Navigator.pop(sheetContext);
+    if (!kIsWeb) {
+      showErrorSnackBar(
+        pageContext,
+        'La impresión del ticket solo está disponible en la versión web.',
+      );
+      return;
+    }
+    final repo = pageContext.read<InventoryRepository>();
+    var launched = false;
+    try {
+      launched = printTicket(
+        sale,
+        skuByProductId: {for (final p in repo.products) p.id: p.sku},
+        reprint: true,
+      );
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched) {
+      showErrorSnackBar(
+        pageContext,
+        'No se pudo abrir el ticket. Permite las ventanas emergentes '
+        'de este sitio e inténtalo de nuevo.',
+      );
+    }
   }
 
   void _confirmCancel(BuildContext context) {

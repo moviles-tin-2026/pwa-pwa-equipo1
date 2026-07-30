@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +7,7 @@ import '../../core/responsive.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
 import '../../services/inventory_repository.dart';
+import '../../utils/print_helper.dart';
 import '../../widgets/common.dart';
 
 /// Módulo 4 — Terminal de Venta (POS, Ambos roles).
@@ -125,9 +127,41 @@ class _PosScreenState extends State<PosScreen> {
           textAlign: TextAlign.center,
         ),
         actions: [
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Aceptar'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              if (!kIsWeb) {
+                showErrorSnackBar(
+                  context,
+                  'La impresión del ticket solo está disponible en la versión web.',
+                );
+                return;
+              }
+              var launched = false;
+              try {
+                launched = printTicket(
+                  sale,
+                  skuByProductId: {
+                    for (final p in repo.products) p.id: p.sku,
+                  },
+                );
+              } catch (_) {
+                launched = false;
+              }
+              Navigator.pop(dialogContext);
+              if (!launched) {
+                showErrorSnackBar(
+                  context,
+                  'No se pudo abrir el ticket. Permite las ventanas '
+                  'emergentes de este sitio e inténtalo de nuevo.',
+                );
+              }
+            },
+            icon: const Icon(Icons.print_outlined),
+            label: const Text('Imprimir ticket'),
           ),
         ],
       ),
@@ -147,9 +181,15 @@ class _PosScreenState extends State<PosScreen> {
           p.sku.toLowerCase().contains(query);
     }).toList();
 
-    final catalog = Column(
-      children: [
-        Padding(
+    // CustomScrollView en vez de Column+Expanded: en ventanas bajas (web/
+    // escritorio con poca altura) el banner + buscador + chips ya ocupaban
+    // casi todo el alto disponible dejando la grilla apachurrada en su
+    // propio scroll diminuto. Con slivers, todo el catálogo —encabezado y
+    // grilla— comparte un solo scroll de página.
+    final catalog = CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
           padding: EdgeInsets.fromLTRB(
             context.pagePadding,
             16,
@@ -214,91 +254,100 @@ class _PosScreenState extends State<PosScreen> {
               ],
             ),
           ),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.pagePadding,
-            8,
-            context.pagePadding,
-            8,
           ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) => setState(() => _search = value),
-            decoration: InputDecoration(
-              hintText: 'Buscar producto o escanear código…',
-              prefixIcon: const Icon(Icons.qr_code_scanner),
-              suffixIcon: _search.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _search = '');
-                      },
-                    ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.pagePadding,
+              8,
+              context.pagePadding,
+              8,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _search = value),
+              decoration: InputDecoration(
+                hintText: 'Buscar producto o escanear código…',
+                prefixIcon: const Icon(Icons.qr_code_scanner),
+                suffixIcon: _search.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _search = '');
+                        },
+                      ),
+              ),
             ),
           ),
         ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
-          child: SizedBox(
-            height: 40,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                FilterChip(
-                  label: const Text('Todas'),
-                  selected: _categoryId == null,
-                  onSelected: (_) => setState(() => _categoryId = null),
-                ),
-                for (final category in repo.categories) ...[
-                  const SizedBox(width: 8),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+            child: SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
                   FilterChip(
-                    label: Text(category.name),
-                    selected: _categoryId == category.id,
-                    onSelected: (selected) => setState(
-                      () => _categoryId = selected ? category.id : null,
-                    ),
+                    label: const Text('Todas'),
+                    selected: _categoryId == null,
+                    onSelected: (_) => setState(() => _categoryId = null),
                   ),
+                  for (final category in repo.categories) ...[
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: Text(category.name),
+                      selected: _categoryId == category.id,
+                      onSelected: (selected) => setState(
+                        () => _categoryId = selected ? category.id : null,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
-        Expanded(
-          child: products.isEmpty
-              ? const EmptyState(
-                  icon: Icons.search_off,
-                  title: 'Sin resultados',
-                )
-              : GridView.builder(
-                  padding: EdgeInsets.fromLTRB(
-                    context.pagePadding,
-                    8,
-                    context.pagePadding,
-                    isMobile ? 96 : 24,
-                  ),
-                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: isMobile ? 200 : 220,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    mainAxisExtent: 216,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final product = products[index];
-                    final inCart = _cart[product.id] ?? 0;
-                    final available = product.stock - inCart;
-                    return _PosProductCard(
-                      product: product,
-                      inCart: inCart,
-                      available: available,
-                      onTap: available > 0 ? () => _addToCart(product) : null,
-                    );
-                  },
-                ),
-        ),
+        if (products.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: EmptyState(
+              icon: Icons.search_off,
+              title: 'Sin resultados',
+            ),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              context.pagePadding,
+              8,
+              context.pagePadding,
+              isMobile ? 96 : 24,
+            ),
+            sliver: SliverGrid.builder(
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: isMobile ? 200 : 220,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: 216,
+              ),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                final inCart = _cart[product.id] ?? 0;
+                final available = product.stock - inCart;
+                return _PosProductCard(
+                  product: product,
+                  inCart: inCart,
+                  available: available,
+                  onTap: available > 0 ? () => _addToCart(product) : null,
+                );
+              },
+            ),
+          ),
       ],
     );
 
@@ -530,8 +579,26 @@ class _PosScreenState extends State<PosScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
+                'Subtotal',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                formatCurrency(total),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.mauve,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
                 'Total',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
               Text(
                 formatCurrency(total),
@@ -544,31 +611,37 @@ class _PosScreenState extends State<PosScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.success,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: items.isEmpty || _processing
-                ? null
-                : () async {
-                    if (sheetContext != null) Navigator.pop(sheetContext);
-                    await _checkout();
-                  },
-            icon: _processing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.check_circle_outline),
-            label: const Text(
-              'Finalizar venta',
-              style: TextStyle(fontSize: 16),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.success,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: items.isEmpty || _processing
+                      ? null
+                      : () async {
+                          if (sheetContext != null) Navigator.pop(sheetContext);
+                          await _checkout();
+                        },
+                  icon: _processing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_outline),
+                  label: const Text(
+                    'Finalizar venta',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

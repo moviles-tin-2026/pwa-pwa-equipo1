@@ -6,14 +6,125 @@ import '../../core/responsive.dart';
 import '../../models/models.dart';
 import '../../services/inventory_repository.dart';
 import '../../widgets/common.dart';
+import 'users_helpers.dart';
 
 /// Módulo 0 — Gestión de Usuarios (solo Admin).
 ///
 /// Alta, baja y asignación de roles para los operadores del sistema.
 /// En la versión final las altas crean el usuario en Firebase Auth y su
 /// documento de rol en Firestore; aquí opera sobre el repositorio local.
-class UsersScreen extends StatelessWidget {
+class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
+
+  @override
+  State<UsersScreen> createState() => _UsersScreenState();
+}
+
+class _UsersScreenState extends State<UsersScreen> {
+  final _searchController = TextEditingController();
+  String _search = '';
+  UserRole? _roleFilter;
+  bool? _statusFilter; // null = todos, true = activos, false = inactivos
+
+  SortOption _sortOption = SortOption.nameAsc;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<AppUser> _filteredUsers(InventoryRepository repo) {
+    final query = _search.trim().toLowerCase();
+    return repo.users.where((user) {
+      if (_roleFilter != null && user.role != _roleFilter) return false;
+      if (_statusFilter != null && user.active != _statusFilter) return false;
+      if (query.isEmpty) return true;
+      return user.name.toLowerCase().contains(query) ||
+          user.email.toLowerCase().contains(query) ||
+          user.role.label.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  void _showUserDetail(BuildContext context, AppUser user) {
+    final history = List.generate(6, (i) {
+      final when = DateTime.now().subtract(Duration(hours: i * 5 + 2));
+      final actions = [
+        'Inició sesión',
+        'Editó perfil',
+        'Cambio de rol',
+        'Inactivado',
+        'Reactivado',
+        'Registrado en el sistema',
+      ];
+      return (time: when, action: actions[i % actions.length]);
+    });
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(user.name),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: (user.isAdmin ? AppTheme.brandNavy : AppTheme.brandBlue).withValues(alpha: 0.12),
+                    child: Text(user.name.isEmpty ? '?' : user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(user.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text(user.email, style: TextStyle(color: Colors.grey.shade600)),
+                        const SizedBox(height: 6),
+                        Row(children: [RoleBadge(role: user.role), const SizedBox(width: 8), if (user.active) const Chip(label: Text('Activo')) else const Chip(label: Text('Inactivo'))]),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 18),
+              const Text('Historial reciente', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: history.length,
+                  separatorBuilder: (_, _) => const Divider(height: 8),
+                  itemBuilder: (context, i) {
+                    final entry = history[i];
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(entry.action),
+                        Text(
+                          '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cerrar')),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +135,21 @@ class UsersScreen extends StatelessWidget {
     final activeCount = repo.users.where((u) => u.active).length;
     final adminCount = repo.users.where((u) => u.isAdmin).length;
     final inactiveCount = repo.users.where((u) => !u.active).length;
+    final users = _filteredUsers(repo);
+
+    // Aplicar ordenamiento seleccionado
+    users.sort((a, b) {
+      switch (_sortOption) {
+        case SortOption.nameAsc:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case SortOption.nameDesc:
+          return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+        case SortOption.role:
+          return a.role.name.compareTo(b.role.name);
+        case SortOption.email:
+          return a.email.toLowerCase().compareTo(b.email.toLowerCase());
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -122,12 +248,94 @@ class UsersScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() => _search = value),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por nombre, correo o rol…',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _search.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _search = '');
+                                  },
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    DropdownButton<SortOption>(
+                      value: _sortOption,
+                      onChanged: (s) => setState(() => _sortOption = s!),
+                      items: const [
+                        DropdownMenuItem(
+                          value: SortOption.nameAsc,
+                          child: Text('Nombre A→Z'),
+                        ),
+                        DropdownMenuItem(
+                          value: SortOption.nameDesc,
+                          child: Text('Nombre Z→A'),
+                        ),
+                        DropdownMenuItem(
+                          value: SortOption.role,
+                          child: Text('Rol'),
+                        ),
+                        DropdownMenuItem(
+                          value: SortOption.email,
+                          child: Text('Correo'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildRoleFilterChip(null, 'Todos'),
+                    _buildRoleFilterChip(UserRole.admin, 'Administrador'),
+                    _buildRoleFilterChip(UserRole.operator, 'Operador'),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text('Todos estados'),
+                      selected: _statusFilter == null,
+                      onSelected: (_) => setState(() => _statusFilter = null),
+                    ),
+                    FilterChip(
+                      label: const Text('Activos'),
+                      selected: _statusFilter == true,
+                      onSelected: (s) => setState(() => _statusFilter = s ? true : null),
+                    ),
+                    FilterChip(
+                      label: const Text('Inactivos'),
+                      selected: _statusFilter == false,
+                      onSelected: (s) => setState(() => _statusFilter = s ? false : null),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           const SectionHeader(title: 'Equipo operativo'),
           const SizedBox(height: 12),
-          if (repo.users.isEmpty)
+          if (users.isEmpty)
             const EmptyState(
               icon: Icons.group_outlined,
               title: 'Sin usuarios registrados',
+              message: 'Ajusta los filtros para encontrar un usuario.',
             )
           else
             GridView.count(
@@ -136,10 +344,20 @@ class UsersScreen extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: isMobile ? 1.8 : 1.45,
-              children: [for (final user in repo.users) _UserTile(user: user)],
+              childAspectRatio: isMobile ? 2.6 : 3.2,
+              children: [for (final user in users) InkWell(onTap: () => _showUserDetail(context, user), child: _UserTile(user: user))],
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoleFilterChip(UserRole? role, String label) {
+    return FilterChip(
+      label: Text(label),
+      selected: _roleFilter == role,
+      onSelected: (selected) => setState(
+        () => _roleFilter = selected ? role : null,
       ),
     );
   }
@@ -282,10 +500,13 @@ class _UserTile extends StatelessWidget {
                   switch (action) {
                     case 'edit':
                       _showUserForm(context, user: user);
+                      break;
                     case 'toggle':
                       repo.updateUser(user.copyWith(active: !user.active));
+                      break;
                     case 'delete':
                       _confirmDelete(context, user);
+                      break;
                   }
                 },
                 itemBuilder: (context) => [

@@ -194,10 +194,16 @@ class _MovementsScreenState extends State<MovementsScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Registrar'),
       ),
+      // CustomScrollView en vez de Column+Expanded: el panel de filtros
+      // (categoría + responsable apilados en móvil, rango de fechas) puede
+      // superar la altura de pantallas chicas, así que todo el contenido
+      // —filtros, contador y lista— comparte un solo scroll de página en
+      // vez de desbordar quedando inalcanzable.
       body: PageContainer(
-        child: Column(
-          children: [
-            Padding(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
               padding: EdgeInsets.fromLTRB(padding, 16, padding, 0),
               child: Card(
                 child: Padding(
@@ -323,40 +329,47 @@ class _MovementsScreenState extends State<MovementsScreen> {
                   ),
                 ),
               ),
+              ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(padding, 12, padding, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${movements.length} movimiento${movements.length == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(padding, 12, padding, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${movements.length} movimiento${movements.length == 1 ? '' : 's'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ),
               ),
             ),
-            Expanded(
-              child: movements.isEmpty
-                  ? EmptyState(
-                      icon: Icons.swap_vert,
-                      title: repo.movements.isEmpty
-                          ? 'Sin movimientos registrados'
-                          : 'Sin resultados',
-                      message: repo.movements.isEmpty
-                          ? 'Registra entradas de compra o salidas por merma.'
-                          : 'Ajusta los filtros para ver otros movimientos.',
-                    )
-                  : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(padding, 12, padding, 96),
-                      itemCount: movements.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) =>
-                          _MovementCard(movement: movements[index]),
-                    ),
-            ),
+            if (movements.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  icon: Icons.swap_vert,
+                  title: repo.movements.isEmpty
+                      ? 'Sin movimientos registrados'
+                      : 'Sin resultados',
+                  message: repo.movements.isEmpty
+                      ? 'Registra entradas de compra o salidas por merma.'
+                      : 'Ajusta los filtros para ver otros movimientos.',
+                ),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(padding, 12, padding, 96),
+                sliver: SliverList.separated(
+                  itemCount: movements.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) =>
+                      _MovementCard(movement: movements[index]),
+                ),
+              ),
           ],
         ),
       ),

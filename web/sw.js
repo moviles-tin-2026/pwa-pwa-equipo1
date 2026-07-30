@@ -9,10 +9,14 @@
  * - Peticiones a otros orígenes (Firestore, Google Fonts, imágenes de
  *   Drive) NO se interceptan: Firestore maneja su propia persistencia.
  *
- * Al cambiar la versión del build, subir CACHE_VERSION invalida el
- * caché anterior (se limpia en `activate`).
+ * CACHE_VERSION identifica el caché de este build. Como los estáticos se
+ * sirven caché-primero, si no cambia entre builds los navegadores que ya
+ * visitaron el sitio siguen ejecutando el `main.dart.js` viejo para
+ * siempre. Por eso el workflow de Pages reescribe esta línea con el SHA
+ * del commit antes de publicar (ver `.github/workflows/deploy-pages.yml`);
+ * el valor de abajo es solo el de desarrollo local.
  */
-const CACHE_VERSION = 'aura-vitae-v1';
+const CACHE_VERSION = 'aura-vitae-dev';
 
 const APP_SHELL = [
   './',
