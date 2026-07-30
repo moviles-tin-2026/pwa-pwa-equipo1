@@ -228,10 +228,18 @@ class KpiCard extends StatelessWidget {
 
 /// Imagen de producto con carga desde URL externa.
 ///
-/// - URL vacía o con error: muestra el ícono de inventario como fallback.
-/// - `webHtmlElementStrategy.fallback`: en Flutter web (CanvasKit) permite
-///   renderizar con un `<img>` cuando el host de la imagen no envía
-///   cabeceras CORS, evitando que fallen en GitHub Pages.
+/// Los tres estados sin foto son visualmente distintos, para poder
+/// diagnosticar de un vistazo por qué una celda está vacía:
+/// - URL vacía: ícono de inventario (el producto no tiene foto).
+/// - Cargando: indicador de progreso.
+/// - Error: ícono de imagen rota (la URL existe pero no sirve).
+///
+/// `webHtmlElementStrategy.fallback`: en Flutter web (CanvasKit) permite
+/// renderizar con un `<img>` cuando el host de la imagen no envía
+/// cabeceras CORS, evitando que fallen en GitHub Pages. Ojo: por esa vía
+/// el widget delega la carga al elemento `<img>` y los estados de
+/// progreso y error no siempre llegan hasta aquí, así que una URL rota
+/// servida sin CORS puede quedarse en el estado de carga.
 class ProductImage extends StatelessWidget {
   const ProductImage({
     super.key,
@@ -257,21 +265,43 @@ class ProductImage extends StatelessWidget {
     final h = height ?? size;
     final iconSize = (h.isFinite ? h : size) * 0.5;
 
-    final fallback = Container(
-      width: w,
-      height: h,
-      decoration: BoxDecoration(
-        color: AppTheme.almond,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      child: Icon(
+    Widget placeholder(Widget child) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: AppTheme.almond,
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
+          child: Center(child: child),
+        );
+
+    final empty = placeholder(
+      Icon(
         Icons.inventory_2_outlined,
         color: AppTheme.brandNavy,
         size: iconSize,
       ),
     );
 
-    if (imageUrl.trim().isEmpty) return fallback;
+    final loading = placeholder(
+      SizedBox.square(
+        dimension: iconSize * 0.6,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppTheme.brandNavy.withValues(alpha: 0.35),
+        ),
+      ),
+    );
+
+    final broken = placeholder(
+      Icon(
+        Icons.broken_image_outlined,
+        color: AppTheme.brandNavy.withValues(alpha: 0.55),
+        size: iconSize,
+      ),
+    );
+
+    if (imageUrl.trim().isEmpty) return empty;
 
     // Decodificar la imagen al tamaño mostrado (no a resolución completa):
     // las fotos del catálogo pueden ser de 1000+ px y aquí se pintan como
@@ -293,8 +323,8 @@ class ProductImage extends StatelessWidget {
         cacheWidth: cacheWidth,
         webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
         loadingBuilder: (context, child, progress) =>
-            progress == null ? child : fallback,
-        errorBuilder: (context, error, stackTrace) => fallback,
+            progress == null ? child : loading,
+        errorBuilder: (context, error, stackTrace) => broken,
       ),
     );
   }
