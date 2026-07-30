@@ -44,6 +44,17 @@ jobs:
 
       - run: flutter build web --release --base-href "/pwa-pwa-equipo1/"
 
+      # Sin esto el caché conserva su nombre entre builds y los navegadores
+      # que ya visitaron el sitio siguen sirviendo el main.dart.js viejo.
+      - name: Versionar el caché del service worker
+        run: |
+          VERSION="aura-vitae-${GITHUB_SHA::7}"
+          sed -i "s|^const CACHE_VERSION = .*|const CACHE_VERSION = '$VERSION';|" build/web/sw.js
+          # Falla el build si el reemplazo no ocurrió: publicar con la
+          # versión de desarrollo reintroduce el bug silenciosamente.
+          grep -q "^const CACHE_VERSION = '$VERSION';$" build/web/sw.js
+          grep -n "^const CACHE_VERSION" build/web/sw.js
+
       - name: Copiar build al root del repo
         run: |
           rm -rf assets canvaskit icons
