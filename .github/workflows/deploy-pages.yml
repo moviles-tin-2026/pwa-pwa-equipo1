@@ -1,0 +1,77 @@
+name: Rebuild GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "assets/**"
+      - "canvaskit/**"
+      - "icons/**"
+      - "favicon.png"
+      - "flutter.js"
+      - "flutter_bootstrap.js"
+      - "flutter_service_worker.js"
+      - "index.html"
+      - "main.dart.js"
+      - "manifest.json"
+      - "sw.js"
+      - "version.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-rebuild
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+      - run: flutter build web --wasm --release --base-href "/pwa-pwa-equipo1/"
+
+      # Sin esto el caché conserva su nombre entre builds y los navegadores
+      # que ya visitaron el sitio siguen sirviendo el main.dart.js viejo.
+      - name: Versionar el caché del service worker
+        run: |
+          VERSION="aura-vitae-${GITHUB_SHA::7}"
+          sed -i "s|^const CACHE_VERSION = .*|const CACHE_VERSION = '$VERSION';|" build/web/sw.js
+          # Falla el build si el reemplazo no ocurrió: publicar con la
+          # versión de desarrollo reintroduce el bug silenciosamente.
+          grep -q "^const CACHE_VERSION = '$VERSION';$" build/web/sw.js
+          grep -n "^const CACHE_VERSION" build/web/sw.js
+
+      # OJO: `assets/` en la raíz es el directorio de SALIDA del build, y el
+      # `rm -rf` de abajo lo vacía en cada corrida. Los assets fuente por eso
+      # viven en `res/` (ver pubspec.yaml). No muevas assets fuente a
+      # `assets/`: el deploy los borra y la corrida siguiente muere en
+      # `flutter analyze` con `asset_does_not_exist`.
+      - name: Copiar build al root del repo
+        run: |
+          rm -rf assets canvaskit icons
+          cp -r build/web/assets build/web/canvaskit build/web/icons .
+          cp build/web/favicon.png build/web/flutter.js build/web/flutter_bootstrap.js \
+             build/web/flutter_service_worker.js build/web/index.html build/web/main.dart.js \
+             build/web/main.dart.wasm build/web/main.dart.mjs \
+             build/web/manifest.json build/web/sw.js build/web/version.json .
+
+      - name: Commit y push del build a main
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "build: actualizar GitHub Pages con últimos cambios [automatizado]"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
