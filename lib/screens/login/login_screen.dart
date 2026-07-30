@@ -18,7 +18,7 @@ class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   static const _backgroundAsset =
-      'assets/images/AuraVitae-Login-backgroundImg.webp';
+      'res/images/AuraVitae-Login-backgroundImg.webp';
 
   @override
   Widget build(BuildContext context) {
