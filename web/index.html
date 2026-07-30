@@ -31,15 +31,134 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <!-- Google Fonts: Montserrat (brand) + Inter (body) AURA VITAE design system -->
+  <!--
+    Google Fonts: Montserrat (brand) + Inter (body) del design system.
+
+    Se piden solo los pesos que el código usa de verdad: Montserrat en
+    600/700/800 y el default Inter en 400/500/600/700 (auditado sobre
+    `app_theme.dart` y las pantallas). Antes se pedía Montserrat 400/500,
+    que nadie usa, y faltaba Inter 700, que sí se usa mucho — el navegador
+    lo estaba sintetizando en falso negrita.
+
+    `media="print"` + `onload` hace que la hoja no bloquee el render: el
+    navegador la baja con prioridad baja y la aplica al terminar. Con
+    `display=swap` el texto se pinta desde el primer frame con la fuente
+    del sistema y cambia al llegar la real.
+  -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <noscript>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  </noscript>
 
   <title>AURA VITAE · PymeSync Skincare CRM</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Splash de arranque.
+
+    Flutter web tarda segundos en descargar y evaluar el motor antes de
+    pintar su primer frame; sin esto la pantalla queda en blanco todo ese
+    tiempo (First Contentful Paint de 10 s en Lighthouse). Los estilos van
+    embebidos y con tipografía del sistema a propósito: cualquier archivo
+    externo aquí volvería a retrasar el primer pintado.
+
+    `flutter_bootstrap.js` le agrega la clase `is-ready` al <html> cuando
+    la app ya montó su primer frame; el splash se desvanece y se retira.
+  -->
+  <style>
+    body { margin: 0; }
+
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      background: linear-gradient(160deg, #F0E7E2 0%, #E6CECE 100%);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      opacity: 1;
+      transition: opacity 250ms ease-out;
+    }
+
+    #splash-mark {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: #5E3F44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #F0E7E2;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    #splash-title {
+      margin: 0;
+      color: #5E3F44;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-indent: 0.22em;
+    }
+
+    #splash-subtitle {
+      margin: 0.4rem 0 0;
+      color: #A47E82;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+    }
+
+    #splash-bar {
+      width: 148px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(94, 63, 68, 0.16);
+      overflow: hidden;
+    }
+
+    #splash-bar::after {
+      content: "";
+      display: block;
+      width: 40%;
+      height: 100%;
+      border-radius: 999px;
+      background: #5E3F44;
+      animation: splash-slide 1.1s ease-in-out infinite;
+    }
+
+    @keyframes splash-slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* Respeta a quien pidió menos movimiento en su sistema. */
+    @media (prefers-reduced-motion: reduce) {
+      #splash-bar::after { animation: none; width: 100%; }
+      #splash { transition: none; }
+    }
+
+    html.is-ready #splash { opacity: 0; pointer-events: none; }
+  </style>
 </head>
 <body>
+  <div id="splash" role="status" aria-live="polite" aria-label="Cargando AURA VITAE">
+    <div id="splash-mark" aria-hidden="true">&#10047;</div>
+    <div>
+      <h1 id="splash-title">AURA VITAE</h1>
+      <p id="splash-subtitle">PYMESYNC · SKINCARE CRM</p>
+    </div>
+    <div id="splash-bar" aria-hidden="true"></div>
+  </div>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

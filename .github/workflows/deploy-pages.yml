@@ -55,6 +55,11 @@ jobs:
           grep -q "^const CACHE_VERSION = '$VERSION';$" build/web/sw.js
           grep -n "^const CACHE_VERSION" build/web/sw.js
 
+      # OJO: `assets/` en la raíz es el directorio de SALIDA del build, y el
+      # `rm -rf` de abajo lo vacía en cada corrida. Los assets fuente por eso
+      # viven en `res/` (ver pubspec.yaml). No muevas assets fuente a
+      # `assets/`: el deploy los borra y la corrida siguiente muere en
+      # `flutter analyze` con `asset_does_not_exist`.
       - name: Copiar build al root del repo
         run: |
           rm -rf assets canvaskit icons
