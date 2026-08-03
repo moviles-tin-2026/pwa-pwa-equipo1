@@ -226,20 +226,31 @@ class KpiCard extends StatelessWidget {
   }
 }
 
-/// Imagen de producto con carga desde URL externa.
+/// Imagen de producto, desde un asset empaquetado o desde una URL externa.
+///
+/// [imageUrl] acepta las dos formas y se decide por el prefijo:
+/// - Empieza con `http` → se descarga de la red.
+/// - Cualquier otra cosa → se lee como asset local (p. ej.
+///   `res/images/products/av-lf-002.webp`).
+///
+/// Los assets locales son la vía preferida para el catálogo. Las imágenes
+/// alojadas en Google Drive no funcionan bien aquí: Drive no envía las
+/// cabeceras CORS que el navegador exige para decodificar los bytes, así
+/// que cada miniatura falla primero por la vía normal (~300 ms perdidos) y
+/// solo se dibuja por el respaldo de elemento `<img>`, que no admite
+/// redimensionado ni queda cacheado por el service worker.
 ///
 /// Los tres estados sin foto son visualmente distintos, para poder
 /// diagnosticar de un vistazo por qué una celda está vacía:
-/// - URL vacía: ícono de inventario (el producto no tiene foto).
+/// - Sin ruta: ícono de inventario (el producto no tiene foto).
 /// - Cargando: indicador de progreso.
-/// - Error: ícono de imagen rota (la URL existe pero no sirve).
+/// - Error: ícono de imagen rota (la ruta existe pero no sirve).
 ///
-/// `webHtmlElementStrategy.fallback`: en Flutter web (CanvasKit) permite
-/// renderizar con un `<img>` cuando el host de la imagen no envía
-/// cabeceras CORS, evitando que fallen en GitHub Pages. Ojo: por esa vía
-/// el widget delega la carga al elemento `<img>` y los estados de
-/// progreso y error no siempre llegan hasta aquí, así que una URL rota
-/// servida sin CORS puede quedarse en el estado de carga.
+/// `webHtmlElementStrategy.fallback` es lo que habilita ese respaldo de
+/// `<img>` para las URLs sin CORS. Ojo: por esa vía el widget delega la
+/// carga al navegador y los estados de progreso y error no siempre llegan
+/// hasta aquí, así que una URL rota servida sin CORS puede quedarse en el
+/// estado de carga. Con assets locales los tres estados sí son fiables.
 class ProductImage extends StatelessWidget {
   const ProductImage({
     super.key,
@@ -301,22 +312,43 @@ class ProductImage extends StatelessWidget {
       ),
     );
 
-    if (imageUrl.trim().isEmpty) return empty;
+    final source = imageUrl.trim();
+    if (source.isEmpty) return empty;
+
+    final isRemote = source.startsWith('http');
 
     // Decodificar la imagen al tamaño mostrado (no a resolución completa):
     // las fotos del catálogo pueden ser de 1000+ px y aquí se pintan como
     // miniaturas; sin esto cada lista decodifica megapíxeles de más.
-    // Solo en plataformas nativas: en web el redimensionado fuerza la vía
-    // de decodificación con CORS y rompe las imágenes de Google Drive
-    // (que se muestran mediante el fallback de elemento <img>).
+    //
+    // Se omite solo para URLs remotas en web: ahí el redimensionado fuerza
+    // la vía de decodificación con CORS, que Drive no soporta, y rompe las
+    // imágenes que hoy dependen del respaldo de <img>. Los assets locales
+    // no tienen ese problema, así que sí se redimensionan en toda
+    // plataforma — que es media razón para migrar el catálogo a `res/`.
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final logicalWidth = w.isFinite ? w : (h.isFinite ? h * 2 : 300);
-    final cacheWidth = kIsWeb ? null : (logicalWidth * dpr).round();
+    final cacheWidth =
+        (kIsWeb && isRemote) ? null : (logicalWidth * dpr).round();
+
+    if (!isRemote) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Image.asset(
+          source,
+          width: w,
+          height: h,
+          fit: BoxFit.cover,
+          cacheWidth: cacheWidth,
+          errorBuilder: (context, error, stackTrace) => broken,
+        ),
+      );
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: Image.network(
-        imageUrl.trim(),
+        source,
         width: w,
         height: h,
         fit: BoxFit.cover,
