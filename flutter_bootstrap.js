@@ -59,6 +59,20 @@ _flutter.loader.load({
     const appRunner = await engineInitializer.initializeEngine();
     await appRunner.runApp();
 
+    // Al arrancar, el motor reemplaza la etiqueta <meta name="viewport"> de
+    // index.html por una propia (queda marcada con `flt-viewport`) que trae
+    // `user-scalable=no, maximum-scale=1.0`, es decir bloquea el zoom.
+    //
+    // Eso es un fallo de accesibilidad real: quien tiene baja visión depende
+    // de ampliar la pantalla para leer, y este es un sistema de inventario y
+    // punto de venta que se usa a diario. Se restaura una que sí permita
+    // ampliar. La app no usa gestos de pellizco, así que no hay conflicto
+    // con el manejo de gestos de Flutter.
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+    }
+
     // `runApp` regresa cuando la app arrancó, no cuando ya se pintó.
     // Dos frames encadenados garantizan que el primer frame real de
     // Flutter esté en pantalla antes de empezar a desvanecer el splash.
