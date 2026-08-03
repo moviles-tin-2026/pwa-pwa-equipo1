@@ -74,6 +74,10 @@ flutter:
   # Cualquier asset nuevo va aquí abajo, nunca en `assets/`.
   assets:
     - res/images/AuraVitae-Login-backgroundImg.webp
+    # Fotos del catálogo. Se sirven como archivos sueltos y se descargan solo
+    # cuando una pantalla las pide, así que no entran en el arranque de la app
+    # ni afectan el tiempo de carga inicial.
+    - res/images/products/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
