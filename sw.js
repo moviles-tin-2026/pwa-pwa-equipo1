@@ -16,7 +16,7 @@
  * del commit antes de publicar (ver `.github/workflows/deploy-pages.yml`);
  * el valor de abajo es solo el de desarrollo local.
  */
-const CACHE_VERSION = 'aura-vitae-cc1c20f';
+const CACHE_VERSION = 'aura-vitae-b338ab6';
 
 // Solo el shell ligero (~400 KB). Los binarios pesados quedan FUERA a
 // propósito: `main.dart.wasm` (2.7 MB), `main.dart.js` (3.2 MB, el

@@ -633,6 +633,7 @@ class CompiledApp {
         return 2;
       },
       _2030: (o, p, r) => o.replaceAll(p, () => r),
+      _2031: (o, p, r) => o.replace(p, () => r),
       _2032: Function.prototype.call.bind(String.prototype.toLowerCase),
       _2033: s => s.toUpperCase(),
       _2034: s => s.trim(),
