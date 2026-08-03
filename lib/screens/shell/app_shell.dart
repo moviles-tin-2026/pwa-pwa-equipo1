@@ -287,6 +287,7 @@ class _AppShellState extends State<AppShell> {
             ListTile(
               leading: ProductImage(
                 imageUrl: product.imageUrl,
+                productName: product.name,
                 size: 38,
                 borderRadius: 8,
               ),

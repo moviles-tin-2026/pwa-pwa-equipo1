@@ -306,36 +306,55 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                   autocorrect: false,
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
-                    labelText: 'URL de imagen (opcional)',
+                    labelText: 'Foto (opcional)',
                     prefixIcon: Icon(Icons.image_outlined),
-                    hintText: 'https://…/imagen.jpg',
+                    hintText: 'res/images/products/….webp  ó  https://…',
                     helperText:
-                        'Enlace directo a la imagen; se guarda solo la URL',
+                        'Déjalo vacío para usar la foto del catálogo que '
+                        'corresponda al nombre del producto',
                   ),
                   validator: (v) {
-                    final url = v?.trim() ?? '';
-                    if (url.isEmpty) return null;
-                    final uri = Uri.tryParse(url);
-                    if (uri == null || !uri.isAbsolute || !url.startsWith('http')) {
-                      return 'Debe ser una URL válida (http/https)';
+                    final value = v?.trim() ?? '';
+                    // Vacío es válido: se resuelve por el nombre del producto.
+                    if (value.isEmpty) return null;
+
+                    // Se aceptan las dos formas que entiende ProductImage:
+                    // ruta de asset empaquetado o URL absoluta.
+                    if (value.startsWith('res/')) {
+                      return value.endsWith('.webp') || value.endsWith('.png')
+                          ? null
+                          : 'La ruta debe terminar en .webp o .png';
+                    }
+
+                    final uri = Uri.tryParse(value);
+                    if (uri == null ||
+                        !uri.isAbsolute ||
+                        !value.startsWith('http')) {
+                      return 'Debe ser una URL http(s) o una ruta res/…';
                     }
                     return null;
                   },
                 ),
-                if (_imageUrlController.text.trim().isNotEmpty) ...[
+                // La vista previa también aplica sin URL: el catálogo trae
+                // fotos empaquetadas que se localizan por el nombre del
+                // producto (ver `productAssetPath`).
+                if (_imageUrlController.text.trim().isNotEmpty ||
+                    _nameController.text.trim().isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       ProductImage(
                         imageUrl: _imageUrlController.text,
+                        productName: _nameController.text,
                         size: 96,
                         borderRadius: 12,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Vista previa — si ves el ícono gris, la URL no '
-                          'carga como imagen directa.',
+                          'Vista previa. Si el producto tiene foto en el '
+                          'catálogo se usa esa; si no, la URL. El ícono gris '
+                          'significa que ninguna de las dos cargó.',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,

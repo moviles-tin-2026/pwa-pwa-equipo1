@@ -679,6 +679,7 @@ class _PosProductCard extends StatelessWidget {
                 children: [
                   ProductImage(
                     imageUrl: product.imageUrl,
+                    productName: product.name,
                     width: double.infinity,
                     height: 104,
                     borderRadius: 0,
