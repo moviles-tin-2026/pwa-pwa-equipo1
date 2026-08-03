@@ -225,7 +225,11 @@ class _ProductCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              ProductImage(imageUrl: product.imageUrl, size: 52),
+              ProductImage(
+                imageUrl: product.imageUrl,
+                productName: product.name,
+                size: 52,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -334,6 +338,7 @@ class _ProductTable extends StatelessWidget {
                           children: [
                             ProductImage(
                               imageUrl: product.imageUrl,
+                              productName: product.name,
                               size: 34,
                               borderRadius: 8,
                             ),
@@ -474,6 +479,7 @@ void _showProductDetail(BuildContext context, Product product, bool isAdmin) {
               children: [
                 ProductImage(
                   imageUrl: product.imageUrl,
+                  productName: product.name,
                   size: 64,
                   borderRadius: 12,
                 ),

@@ -226,12 +226,34 @@ class KpiCard extends StatelessWidget {
   }
 }
 
+/// Ruta del asset del catálogo que le corresponde a un producto por su nombre.
+///
+/// Las fotos de `res/images/products/` están nombradas con el nombre del
+/// producto en minúsculas y unido por guiones: "Cleansing Foam" resuelve a
+/// `res/images/products/cleansing-foam.webp`.
+///
+/// OJO — esto ata la foto al nombre del producto: si alguien lo renombra, su
+/// imagen deja de encontrarse y aparece el ícono de imagen rota. Es una
+/// decisión consciente para no tener que guardar la ruta en cada documento de
+/// Firestore. Si el catálogo va a cambiar de nombres, lo correcto es guardar
+/// la ruta en el campo `imageUrl`, que tiene prioridad sobre esta derivación.
+String productAssetPath(String productName) {
+  final slug = productName
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'-{2,}'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  return 'res/images/products/$slug.webp';
+}
+
 /// Imagen de producto, desde un asset empaquetado o desde una URL externa.
 ///
-/// [imageUrl] acepta las dos formas y se decide por el prefijo:
-/// - Empieza con `http` → se descarga de la red.
-/// - Cualquier otra cosa → se lee como asset local (p. ej.
-///   `res/images/products/av-lf-002.webp`).
+/// Orden de resolución:
+/// 1. Si [imageUrl] no empieza con `http`, se usa tal cual como asset.
+/// 2. Si se pasó [productName], se busca el asset que le corresponde por
+///    nombre (ver [productAssetPath]).
+/// 3. Si ese asset no existe y [imageUrl] es una URL, se intenta la red.
+/// 4. Si nada resuelve, se muestra el ícono de imagen rota.
 ///
 /// Los assets locales son la vía preferida para el catálogo. Las imágenes
 /// alojadas en Google Drive no funcionan bien aquí: Drive no envía las
@@ -255,6 +277,7 @@ class ProductImage extends StatelessWidget {
   const ProductImage({
     super.key,
     required this.imageUrl,
+    this.productName,
     this.size = 44,
     this.borderRadius = 10,
     this.width,
@@ -262,6 +285,11 @@ class ProductImage extends StatelessWidget {
   });
 
   final String imageUrl;
+
+  /// Nombre del producto, para localizar su foto empaquetada cuando
+  /// [imageUrl] no apunta ya a un asset. Omitirlo desactiva esa búsqueda.
+  final String? productName;
+
   final double size;
   final double borderRadius;
 
@@ -313,9 +341,18 @@ class ProductImage extends StatelessWidget {
     );
 
     final source = imageUrl.trim();
-    if (source.isEmpty) return empty;
-
+    final name = productName?.trim() ?? '';
     final isRemote = source.startsWith('http');
+
+    // Nada que resolver: ni ruta guardada ni nombre del que deducirla.
+    if (source.isEmpty && name.isEmpty) return empty;
+
+    // El asset derivado del nombre gana sobre una URL remota. Las fotos del
+    // catálogo están empaquetadas; ir a la red por ellas sería más lento y,
+    // en el caso de las URLs de Drive que quedaron en Firestore, fallaría.
+    final derivedAsset = (isRemote || source.isEmpty) && name.isNotEmpty
+        ? productAssetPath(name)
+        : null;
 
     // Decodificar la imagen al tamaño mostrado (no a resolución completa):
     // las fotos del catálogo pueden ser de 1000+ px y aquí se pintan como
@@ -328,37 +365,55 @@ class ProductImage extends StatelessWidget {
     // plataforma — que es media razón para migrar el catálogo a `res/`.
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final logicalWidth = w.isFinite ? w : (h.isFinite ? h * 2 : 300);
-    final cacheWidth =
-        (kIsWeb && isRemote) ? null : (logicalWidth * dpr).round();
+    final resizeWidth = (logicalWidth * dpr).round();
 
-    if (!isRemote) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Image.asset(
-          source,
-          width: w,
-          height: h,
-          fit: BoxFit.cover,
-          cacheWidth: cacheWidth,
-          errorBuilder: (context, error, stackTrace) => broken,
-        ),
+    Widget clip(Widget child) => ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: child,
+        );
+
+    Widget remote() => clip(
+          Image.network(
+            source,
+            width: w,
+            height: h,
+            fit: BoxFit.cover,
+            cacheWidth: kIsWeb ? null : resizeWidth,
+            webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+            loadingBuilder: (context, child, progress) =>
+                progress == null ? child : loading,
+            errorBuilder: (context, error, stackTrace) => broken,
+          ),
+        );
+
+    Widget asset(String path, {required Widget Function() onMissing}) => clip(
+          Image.asset(
+            path,
+            width: w,
+            height: h,
+            fit: BoxFit.cover,
+            cacheWidth: resizeWidth,
+            errorBuilder: (context, error, stackTrace) => onMissing(),
+          ),
+        );
+
+    // Ruta ya guardada como asset: es explícita, se respeta sin más.
+    if (source.isNotEmpty && !isRemote) {
+      return asset(source, onMissing: () => broken);
+    }
+
+    // Foto deducida del nombre. Si no existe un archivo para ese nombre se
+    // cae a la URL guardada, y si tampoco hay, al ícono de imagen rota —
+    // que es la señal de que el nombre del producto no coincide con ningún
+    // archivo de `res/images/products/`.
+    if (derivedAsset != null) {
+      return asset(
+        derivedAsset,
+        onMissing: () => isRemote ? remote() : broken,
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: Image.network(
-        source,
-        width: w,
-        height: h,
-        fit: BoxFit.cover,
-        cacheWidth: cacheWidth,
-        webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : loading,
-        errorBuilder: (context, error, stackTrace) => broken,
-      ),
-    );
+    return remote();
   }
 }
 

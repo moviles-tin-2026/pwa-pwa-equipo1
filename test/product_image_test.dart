@@ -51,4 +51,56 @@ void main() {
     final image = tester.widget<Image>(find.byType(Image));
     expect(unwrap(image.image), isA<AssetImage>());
   });
+
+  group('foto deducida del nombre del producto', () {
+    test('el nombre se convierte en la ruta del asset', () {
+      expect(productAssetPath('Cleansing Foam'),
+          'res/images/products/cleansing-foam.webp');
+      expect(productAssetPath('Matte Sunscreen SPF 50+'),
+          'res/images/products/matte-sunscreen-spf-50.webp');
+      expect(productAssetPath('Retinol 0.2% Night Serum'),
+          'res/images/products/retinol-0-2-night-serum.webp');
+      expect(productAssetPath('  Toner  '), 'res/images/products/toner.webp');
+    });
+
+    testWidgets('el nombre gana sobre una URL remota',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ProductImage(
+              imageUrl: 'https://drive.google.com/uc?id=abc123',
+              productName: 'Cleansing Foam',
+            ),
+          ),
+        ),
+      );
+
+      // Va al asset empaquetado, no a la red: las URLs de Drive que quedaron
+      // en Firestore fallan por CORS y son más lentas aunque funcionaran.
+      final image = tester.widget<Image>(find.byType(Image));
+      final provider = unwrap(image.image);
+      expect(provider, isA<AssetImage>());
+      expect((provider as AssetImage).assetName,
+          'res/images/products/cleansing-foam.webp');
+    });
+
+    testWidgets('una ruta guardada explícitamente gana sobre el nombre',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ProductImage(
+              imageUrl: 'res/images/products/otra-foto.webp',
+              productName: 'Cleansing Foam',
+            ),
+          ),
+        ),
+      );
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect((unwrap(image.image) as AssetImage).assetName,
+          'res/images/products/otra-foto.webp');
+    });
+  });
 }
