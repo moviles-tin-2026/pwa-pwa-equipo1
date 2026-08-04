@@ -44,6 +44,25 @@ abstract class InventoryRepository extends ChangeNotifier {
     return null;
   }
 
+  /// Producto que ya usa [sku], o `null` si está libre.
+  ///
+  /// Compara sin distinguir mayúsculas ni espacios sobrantes: para el
+  /// cajero que teclea o escanea un código, `AV-001` y `av-001 ` son el
+  /// mismo producto, así que permitir ambos volvería ambigua la búsqueda
+  /// del POS.
+  ///
+  /// [excludingId] deja fuera al producto que se está editando, para que
+  /// no choque consigo mismo.
+  Product? productBySku(String sku, {String? excludingId}) {
+    final normalized = sku.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final p in productsCache) {
+      if (p.id == excludingId) continue;
+      if (p.sku.trim().toLowerCase() == normalized) return p;
+    }
+    return null;
+  }
+
   List<Product> get lowStockProducts => productsCache
       .where((p) => p.stockStatus != StockStatus.ok)
       .toList()
