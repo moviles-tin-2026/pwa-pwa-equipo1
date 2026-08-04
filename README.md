@@ -26,7 +26,7 @@ La app ofrece gestión de inventario en tiempo real, punto de venta con transacc
 
 ## ✨ Módulos
 
-- **Módulo 0 — Autenticación y usuarios:** login con Firebase Auth, restablecimiento de contraseña y gestión de usuarios (solo Admin).
+- **Módulo 0 — Autenticación y usuarios:** login con Firebase Auth, restablecimiento de contraseña y gestión de usuarios (solo Admin). El alta crea la cuenta en Firebase Auth con una contraseña temporal y el documento de rol en `users/{uid}`; el nuevo usuario entra de inmediato y cambia su contraseña desde *¿Olvidaste tu contraseña?*.
 - **Módulo 1 — Dashboard:** métricas de inventario y ventas, con vistas según el rol.
 - **Módulo 2 — Catálogos e inventario:** productos, categorías, SKU, precios, márgenes y niveles de stock (mínimo / máximo).
 - **Módulo 3 — Movimientos de almacén:** entradas y salidas con motivo obligatorio.

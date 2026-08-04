@@ -330,16 +330,6 @@ class FirestoreInventoryRepository extends InventoryRepository {
   // ---------------- Usuarios ----------------
 
   @override
-  Future<void> addUser({
-    required String name,
-    required String email,
-    required UserRole role,
-  }) =>
-      _db.collection('users').add(
-        AppUser(id: '', name: name, email: email, role: role).toMap(),
-      );
-
-  @override
   Future<void> updateUser(AppUser updated) =>
       _db.collection('users').doc(updated.id).update(updated.toMap());
 
