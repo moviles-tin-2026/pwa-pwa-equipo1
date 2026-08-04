@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import '../firebase_options.dart';
 import '../models/models.dart';
 
 /// Servicio de autenticación y sesión.
@@ -116,6 +118,100 @@ class AuthService extends ChangeNotifier {
       );
     }
   }
+
+  /// Da de alta un usuario completo: cuenta en Firebase Authentication
+  /// **y** documento de rol en `users/{uid}`. Solo lo usa el Admin desde
+  /// Gestión de Usuarios.
+  ///
+  /// Antes el alta solo escribía en Firestore, así que la cuenta no existía
+  /// en Auth y el usuario creado no podía iniciar sesión hasta darlo de
+  /// alta a mano en la consola de Firebase.
+  ///
+  /// El documento va con el uid como id porque de eso dependen las reglas
+  /// (`users/{userId}` con `request.auth.uid == userId`) y la carga de
+  /// perfil al iniciar sesión.
+  Future<AppUser> createUserAccount({
+    required String name,
+    required String email,
+    required String password,
+    required UserRole role,
+  }) async {
+    await _ensureReady();
+    final normalized = email.trim().toLowerCase();
+
+    // La cuenta se crea en una instancia secundaria de Firebase a
+    // propósito: `createUserWithEmailAndPassword` deja firmado al usuario
+    // recién creado, y hacerlo sobre la app principal sacaría de su sesión
+    // al administrador que está dando el alta.
+    final auth = FirebaseAuth.instanceFor(app: await _provisioningApp());
+    User? created;
+    try {
+      final credential = await auth.createUserWithEmailAndPassword(
+        email: normalized,
+        password: password,
+      );
+      created = credential.user;
+      final profile = AppUser(
+        id: created!.uid,
+        name: name.trim(),
+        email: normalized,
+        role: role,
+      );
+      // Se escribe con la app principal, es decir con la sesión del
+      // administrador: las reglas exigen rol admin para crear perfiles
+      // ajenos.
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(profile.id)
+          .set(profile.toMap());
+      return profile;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(switch (e.code) {
+        'email-already-in-use' => 'Ya existe una cuenta con ese correo',
+        'invalid-email' => 'El correo no es válido',
+        'weak-password' =>
+          'Firebase rechazó la contraseña por débil. Usa una más larga '
+              'o genera una desde el formulario.',
+        'operation-not-allowed' =>
+          'El acceso con correo y contraseña está deshabilitado en la '
+              'consola de Firebase.',
+        'network-request-failed' =>
+          'Sin conexión a internet. Intenta de nuevo.',
+        _ => 'No se pudo crear la cuenta (${e.code})',
+      });
+    } catch (_) {
+      // La cuenta se creó pero el perfil no: sin documento en `users` el
+      // rol quedaría indefinido, así que se deshace el alta en vez de
+      // dejar una cuenta huérfana.
+      try {
+        await created?.delete();
+      } catch (_) {}
+      throw const AuthException(
+        'La cuenta no se pudo registrar en la base de datos. Verifica tu '
+        'conexión y que tu sesión siga activa.',
+      );
+    } finally {
+      // Cerrar la sesión que quedó abierta en la app secundaria. La del
+      // administrador vive en la app principal y no se toca.
+      try {
+        await auth.signOut();
+      } catch (_) {}
+    }
+  }
+
+  /// Instancia secundaria de Firebase reservada para las altas.
+  Future<FirebaseApp> _provisioningApp() async {
+    try {
+      return Firebase.app(_provisioningAppName);
+    } catch (_) {
+      return Firebase.initializeApp(
+        name: _provisioningAppName,
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  }
+
+  static const String _provisioningAppName = 'pymesync-user-provisioning';
 
   Future<void> sendPasswordReset(String email) async {
     await _ensureReady();

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../core/responsive.dart';
 import '../../models/models.dart';
+import '../../services/auth_service.dart';
 import '../../services/inventory_repository.dart';
 import '../../widgets/common.dart';
 import 'users_helpers.dart';
@@ -11,8 +12,10 @@ import 'users_helpers.dart';
 /// Módulo 0 — Gestión de Usuarios (solo Admin).
 ///
 /// Alta, baja y asignación de roles para los operadores del sistema.
-/// En la versión final las altas crean el usuario en Firebase Auth y su
-/// documento de rol en Firestore; aquí opera sobre el repositorio local.
+/// El alta crea la cuenta en Firebase Auth y su documento de rol en
+/// `users/{uid}` (ver `AuthService.createUserAccount`), así que quien se
+/// da de alta puede iniciar sesión de inmediato con la contraseña temporal
+/// que se muestra al terminar.
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
 
@@ -628,17 +631,67 @@ class _UserTile extends StatelessWidget {
 /// Formulario de alta / edición de usuario en un diálogo modal
 /// (bottom sheet en móvil quedaría igual de bien; el diálogo funciona
 /// en ambos formatos).
+///
+/// El alta crea la cuenta en Firebase Authentication además del documento
+/// de rol, así que el usuario puede iniciar sesión de inmediato con la
+/// contraseña que se muestra al final.
 void _showUserForm(BuildContext context, {AppUser? user}) {
+  final auth = context.read<AuthService>();
   final repo = context.read<InventoryRepository>();
   final nameController = TextEditingController(text: user?.name ?? '');
   final emailController = TextEditingController(text: user?.email ?? '');
+  final passwordController =
+      TextEditingController(text: user == null ? generateTemporaryPassword() : '');
   final formKey = GlobalKey<FormState>();
   UserRole role = user?.role ?? UserRole.operator;
+  var saving = false;
+  String? errorMessage;
 
   showDialog<void>(
     context: context,
+    barrierDismissible: false,
     builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setDialogState) => AlertDialog(
+      builder: (dialogContext, setDialogState) {
+        Future<void> submit() async {
+          if (!formKey.currentState!.validate()) return;
+          setDialogState(() {
+            saving = true;
+            errorMessage = null;
+          });
+
+          if (user != null) {
+            await repo.updateUser(
+              user.copyWith(name: nameController.text.trim(), role: role),
+            );
+            if (!dialogContext.mounted) return;
+            Navigator.pop(dialogContext);
+            showSuccessSnackBar(context, 'Usuario actualizado');
+            return;
+          }
+
+          final email = emailController.text.trim().toLowerCase();
+          final password = passwordController.text;
+          try {
+            await auth.createUserAccount(
+              name: nameController.text.trim(),
+              email: email,
+              password: password,
+              role: role,
+            );
+          } on AuthException catch (e) {
+            if (!dialogContext.mounted) return;
+            setDialogState(() {
+              saving = false;
+              errorMessage = e.message;
+            });
+            return;
+          }
+          if (!dialogContext.mounted) return;
+          Navigator.pop(dialogContext);
+          _showCredentialsDialog(context, email: email, password: password);
+        }
+
+        return AlertDialog(
         title: Text(user == null ? 'Nuevo usuario' : 'Editar usuario'),
         content: SizedBox(
           width: 400,
@@ -676,6 +729,29 @@ void _showUserForm(BuildContext context, {AppUser? user}) {
                     return null;
                   },
                 ),
+                if (user == null) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: passwordController,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña temporal',
+                      helperText: 'El operador podrá cambiarla desde el login',
+                      helperMaxLines: 2,
+                      prefixIcon: const Icon(Icons.key_outlined),
+                      suffixIcon: IconButton(
+                        tooltip: 'Generar otra',
+                        icon: const Icon(Icons.casino_outlined),
+                        onPressed: saving
+                            ? null
+                            : () => setDialogState(() {
+                                  passwordController.text =
+                                      generateTemporaryPassword();
+                                }),
+                      ),
+                    ),
+                    validator: validateNewPassword,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 SegmentedButton<UserRole>(
                   segments: const [
@@ -691,42 +767,124 @@ void _showUserForm(BuildContext context, {AppUser? user}) {
                     ),
                   ],
                   selected: {role},
-                  onSelectionChanged: (selection) =>
-                      setDialogState(() => role = selection.first),
+                  onSelectionChanged: saving
+                      ? null
+                      : (selection) =>
+                          setDialogState(() => role = selection.first),
                 ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.danger.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      errorMessage!,
+                      style: const TextStyle(
+                        color: AppTheme.danger,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: saving ? null : () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              if (user == null) {
-                repo.addUser(
-                  name: nameController.text.trim(),
-                  email: emailController.text.trim().toLowerCase(),
-                  role: role,
-                );
-              } else {
-                repo.updateUser(
-                  user.copyWith(name: nameController.text.trim(), role: role),
-                );
-              }
-              Navigator.pop(dialogContext);
-              showSuccessSnackBar(
-                context,
-                user == null ? 'Usuario creado' : 'Usuario actualizado',
-              );
-            },
-            child: Text(user == null ? 'Crear' : 'Guardar'),
+            onPressed: saving ? null : submit,
+            child: saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(user == null ? 'Crear' : 'Guardar'),
           ),
         ],
+        );
+      },
+    ),
+  );
+}
+
+/// Entrega las credenciales al administrador después de un alta.
+///
+/// El correo de Firebase puede tardar o caer en spam, así que la
+/// contraseña temporal se muestra aquí: es la única vez que aparece.
+void _showCredentialsDialog(
+  BuildContext context, {
+  required String email,
+  required String password,
+}) {
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      icon: const Icon(Icons.check_circle, color: AppTheme.success, size: 44),
+      title: const Text('Usuario creado'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'La cuenta ya puede iniciar sesión. Comparte estos datos con '
+              'la persona; la contraseña no se vuelve a mostrar.',
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.almond,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Correo',
+                    style: TextStyle(fontSize: 11, color: AppTheme.mauve),
+                  ),
+                  SelectableText(email),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Contraseña temporal',
+                    style: TextStyle(fontSize: 11, color: AppTheme.mauve),
+                  ),
+                  SelectableText(
+                    password,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Entendido'),
+        ),
+      ],
     ),
   );
 }

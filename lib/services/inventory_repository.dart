@@ -170,11 +170,10 @@ abstract class InventoryRepository extends ChangeNotifier {
   /// trazabilidad del historial.
   Future<void> cancelSale(String saleId, {required String userName});
 
-  Future<void> addUser({
-    required String name,
-    required String email,
-    required UserRole role,
-  });
+  // El alta de usuarios NO vive aquí: crear solo el documento dejaba una
+  // cuenta que no podía iniciar sesión, y con id aleatorio en vez del uid
+  // que exigen las reglas. La hace `AuthService.createUserAccount`, que
+  // registra la cuenta en Firebase Auth y el perfil en `users/{uid}`.
   Future<void> updateUser(AppUser updated);
   Future<void> deleteUser(String id);
 }
