@@ -222,7 +222,11 @@ abstract class InventoryRepository extends ChangeNotifier {
   /// Cancela un folio (solo Admin), devuelve el stock al inventario y
   /// registra un movimiento de entrada por cada línea para conservar la
   /// trazabilidad del historial.
-  Future<void> cancelSale(String saleId, {required String userName});
+  ///
+  /// Devuelve un mensaje de error o `null` si tuvo éxito: la cancelación
+  /// es una transacción y sin conexión no se puede resolver, así que la
+  /// UI necesita poder decirlo.
+  Future<String?> cancelSale(String saleId, {required String userName});
 
   // El alta de usuarios NO vive aquí: crear solo el documento dejaba una
   // cuenta que no podía iniciar sesión, y con id aleatorio en vez del uid

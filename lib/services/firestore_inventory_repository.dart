@@ -196,8 +196,32 @@ class FirestoreInventoryRepository extends InventoryRepository {
         return null;
       });
     } catch (e) {
-      return 'Error al registrar el movimiento: $e';
+      return _writeErrorMessage(e, action: 'registrar el movimiento');
     }
+  }
+
+  /// Mensaje para un fallo de escritura.
+  ///
+  /// Distingue la falta de conexión porque es el caso más frecuente y el
+  /// más confuso: la app abre sin red gracias a la caché local, así que
+  /// parece que todo funciona hasta que se intenta guardar. Las
+  /// transacciones no se resuelven sin conexión —necesitan leer el stock
+  /// del servidor para descontarlo de forma atómica—, y decir "sin
+  /// conexión" evita que se lea como un error del sistema.
+  static String _writeErrorMessage(Object error, {required String action}) {
+    if (error is FirebaseException) {
+      return switch (error.code) {
+        'unavailable' || 'deadline-exceeded' =>
+          'Sin conexión: no se puede $action porque el inventario se '
+              'actualiza contra el servidor. Reconecta e intenta de nuevo.',
+        'permission-denied' =>
+          'Tu cuenta no tiene permiso para $action.',
+        'unauthenticated' =>
+          'Tu sesión expiró. Vuelve a iniciar sesión e intenta de nuevo.',
+        _ => 'No se pudo $action (${error.code}).',
+      };
+    }
+    return 'No se pudo $action: $error';
   }
 
   // ---------------- Ventas (POS) ----------------
@@ -278,12 +302,24 @@ class FirestoreInventoryRepository extends InventoryRepository {
     } on _CheckoutError catch (e) {
       return (sale: null, error: e.message);
     } catch (e) {
-      return (sale: null, error: 'Error al procesar la venta: $e');
+      return (
+        sale: null,
+        error: _writeErrorMessage(e, action: 'cobrar la venta'),
+      );
     }
   }
 
   @override
-  Future<void> cancelSale(String saleId, {required String userName}) async {
+  Future<String?> cancelSale(String saleId, {required String userName}) async {
+    try {
+      await _cancelSaleTransaction(saleId, userName);
+      return null;
+    } catch (e) {
+      return _writeErrorMessage(e, action: 'cancelar la venta');
+    }
+  }
+
+  Future<void> _cancelSaleTransaction(String saleId, String userName) async {
     await _db.runTransaction<void>((tx) async {
       final saleRef = _db.collection('sales').doc(saleId);
       final saleSnap = await tx.get(saleRef);
