@@ -31,6 +31,9 @@ La app ofrece gestión de inventario en tiempo real, punto de venta con transacc
 - **Módulo 2 — Catálogos e inventario:** productos, categorías, SKU, precios, márgenes y niveles de stock (mínimo / máximo).
 - **Módulo 3 — Movimientos de almacén:** entradas y salidas con motivo obligatorio.
 - **Módulo 4 — Punto de venta e historial:** POS con descuento atómico de inventario y cancelación de folios (solo Admin).
+- **Configuración de la cuenta** (ambos roles, desde el menú de usuario): nombre, correo de recuperación, enlace para cambiar la contraseña y sección de inicio del sistema.
+
+> **Correo de recuperación.** Firebase solo envía el enlace de restablecimiento al **correo de la cuenta**, nunca a una dirección alterna guardada en Firestore. Por eso Configuración permite guardar el correo real de contacto *y*, con el botón **Usar como correo de la cuenta**, convertirlo en el correo de acceso: Firebase manda una verificación a esa bandeja y, al confirmarla, ahí llegan tanto el inicio de sesión como los restablecimientos. Es la única forma de lograrlo sin un backend propio (Cloud Function + servicio de correo).
 
 ## 👥 Roles (RBAC)
 

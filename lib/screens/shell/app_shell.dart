@@ -11,6 +11,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../movements/movements_screen.dart';
 import '../products/product_list_screen.dart';
 import '../sales/sales_screen.dart';
+import '../settings/settings_screen.dart';
 import '../users/users_screen.dart';
 
 /// Secciones de nivel superior del sistema.
@@ -55,6 +56,22 @@ class _AppShellState extends State<AppShell> {
   String? _inventoryQuery;
 
   final SearchController _searchController = SearchController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Preferencia de inicio del perfil (Configuración). Se valida contra
+    // las secciones del rol para que un cambio de rol no deje al usuario
+    // arrancando en un módulo que ya no le toca.
+    final user = context.read<AuthService>().currentUser;
+    if (user == null || user.startSection.isEmpty) return;
+    for (final section in _sectionsFor(user)) {
+      if (section.name == user.startSection) {
+        _section = section;
+        break;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -550,6 +567,23 @@ class _AppShellState extends State<AppShell> {
         ),
         const Divider(height: 8),
         MenuItemButton(
+          onPressed: () => _openSettings(context),
+          leadingIcon: const Icon(
+            Icons.settings_outlined,
+            size: 18,
+            color: AppTheme.merlot,
+          ),
+          child: const Text(
+            'Configuración',
+            style: TextStyle(
+              fontFamily: 'Montserrat',
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              color: AppTheme.merlot,
+            ),
+          ),
+        ),
+        MenuItemButton(
           onPressed: () => _confirmSignOut(context),
           leadingIcon: const Icon(
             Icons.logout,
@@ -567,6 +601,25 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Configuración va como pantalla aparte y no como sección del menú:
+  /// es de la cuenta, no un módulo del sistema, y así no altera el menú
+  /// filtrado por rol.
+  void _openSettings(BuildContext context) {
+    final user = context.read<AuthService>().currentUser;
+    if (user == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SettingsScreen(
+          availableSections: [
+            for (final section in _sectionsFor(user))
+              if (section != AppSection.dashboard)
+                (value: section.name, label: section.label),
+          ],
+        ),
+      ),
     );
   }
 

@@ -30,6 +30,15 @@ service cloud.firestore {
         .hasOnly(['stock']);
     }
 
+    // Campos que cada quien puede editar de su propio perfil desde
+    // Configuración. Deja fuera `role`, `active` y `email` a propósito:
+    // el rol y la baja son del admin, y el correo de la cuenta lo cambia
+    // Firebase Auth tras verificar la dirección nueva.
+    function onlyOwnProfileFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name', 'recoveryEmail', 'startSection']);
+    }
+
     match /users/{userId} {
       // Cada quien lee su perfil; el admin lee y administra todos.
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
@@ -38,7 +47,11 @@ service cloud.firestore {
         || (signedIn()
             && request.auth.uid == userId
             && request.resource.data.role == 'operator');
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == userId
+            && onlyOwnProfileFieldsChanged());
+      allow delete: if isAdmin();
     }
 
     match /categories/{categoryId} {

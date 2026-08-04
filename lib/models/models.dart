@@ -21,22 +21,50 @@ class AppUser {
     required this.email,
     required this.role,
     this.active = true,
+    this.recoveryEmail = '',
+    this.startSection = '',
   });
 
   final String id;
   final String name;
+
+  /// Correo de la cuenta: con este se inicia sesión y a este manda Firebase
+  /// el enlace para restablecer la contraseña.
   final String email;
   final UserRole role;
   final bool active;
 
+  /// Correo personal de contacto de la persona, guardado en su perfil.
+  ///
+  /// Firebase solo envía el restablecimiento al correo de la cuenta, así
+  /// que este no recibe nada por sí solo: sirve para localizar a la persona
+  /// y como origen del cambio de correo de la cuenta (ver
+  /// `AuthService.startAccountEmailChange`), que es lo que sí hace que el
+  /// enlace llegue a una bandeja real.
+  final String recoveryEmail;
+
+  /// Sección que abre al iniciar sesión, guardada como el `name` del enum
+  /// `AppSection`. Vacío = Dashboard.
+  final String startSection;
+
   bool get isAdmin => role == UserRole.admin;
 
-  AppUser copyWith({String? name, UserRole? role, bool? active}) => AppUser(
+  AppUser copyWith({
+    String? name,
+    String? email,
+    UserRole? role,
+    bool? active,
+    String? recoveryEmail,
+    String? startSection,
+  }) =>
+      AppUser(
         id: id,
         name: name ?? this.name,
-        email: email,
+        email: email ?? this.email,
         role: role ?? this.role,
         active: active ?? this.active,
+        recoveryEmail: recoveryEmail ?? this.recoveryEmail,
+        startSection: startSection ?? this.startSection,
       );
 
   Map<String, dynamic> toMap() => {
@@ -44,6 +72,8 @@ class AppUser {
         'email': email,
         'role': role.name,
         'active': active,
+        'recoveryEmail': recoveryEmail,
+        'startSection': startSection,
       };
 
   factory AppUser.fromMap(String id, Map<String, dynamic> map) => AppUser(
@@ -54,6 +84,8 @@ class AppUser {
             ? UserRole.admin
             : UserRole.operator,
         active: (map['active'] ?? true) as bool,
+        recoveryEmail: (map['recoveryEmail'] ?? '') as String,
+        startSection: (map['startSection'] ?? '') as String,
       );
 }
 
