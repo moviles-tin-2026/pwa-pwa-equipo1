@@ -265,6 +265,7 @@ class _LoginFormState extends State<_LoginForm> {
 
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  bool _isSendingReset = false;
 
   // ---- Estándar de seguridad de contraseña ----
   static const int _passwordMaxLength = 64;
@@ -306,6 +307,41 @@ class _LoginFormState extends State<_LoginForm> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     await _signIn(_emailController.text, _passwordController.text);
+  }
+
+  /// Envía el enlace de restablecimiento al correo escrito arriba.
+  ///
+  /// Valida el formato antes de llamar a Firebase y **espera** la
+  /// respuesta: la versión anterior disparaba el envío sin esperarlo y
+  /// anunciaba "enlace enviado" pasara lo que pasara, incluso con un texto
+  /// que ni siquiera era un correo.
+  Future<void> _sendPasswordReset() async {
+    FocusScope.of(context).unfocus();
+    final email = _emailController.text.trim();
+    final invalid = _validateEmail(email);
+    if (invalid != null) {
+      showErrorSnackBar(context, invalid);
+      return;
+    }
+
+    setState(() => _isSendingReset = true);
+    try {
+      await context.read<AuthService>().sendPasswordReset(email);
+      if (!mounted) return;
+      // Firebase puede tener activada la protección contra enumeración de
+      // correos: en ese caso responde igual exista o no la cuenta, así que
+      // el mensaje no puede afirmar que el correo salió.
+      showSuccessSnackBar(
+        context,
+        'Si $email tiene una cuenta, el enlace llegará en unos minutos. '
+        'Revisa también la carpeta de spam.',
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(context, e.message);
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
+    }
   }
 
   Future<void> _signIn(String email, String password) async {
@@ -405,22 +441,12 @@ class _LoginFormState extends State<_LoginForm> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    final email = _emailController.text.trim();
-                    if (email.isEmpty) {
-                      showErrorSnackBar(
-                        context,
-                        'Escribe tu correo para enviarte el enlace',
-                      );
-                      return;
-                    }
-                    context.read<AuthService>().sendPasswordReset(email);
-                    showSuccessSnackBar(
-                      context,
-                      'Enlace de restablecimiento enviado a $email',
-                    );
-                  },
-                  child: const Text('¿Olvidaste tu contraseña?'),
+                  onPressed: _isSendingReset ? null : _sendPasswordReset,
+                  child: Text(
+                    _isSendingReset
+                        ? 'Enviando…'
+                        : '¿Olvidaste tu contraseña?',
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
