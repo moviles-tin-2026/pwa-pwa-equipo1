@@ -165,8 +165,10 @@ abstract class InventoryRepository extends ChangeNotifier {
     required String userName,
   });
 
-  /// Cancela un folio (solo Admin) y devuelve el stock al inventario.
-  Future<void> cancelSale(String saleId);
+  /// Cancela un folio (solo Admin), devuelve el stock al inventario y
+  /// registra un movimiento de entrada por cada línea para conservar la
+  /// trazabilidad del historial.
+  Future<void> cancelSale(String saleId, {required String userName});
 
   Future<void> addUser({
     required String name,

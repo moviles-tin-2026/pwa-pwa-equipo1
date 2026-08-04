@@ -412,6 +412,7 @@ class _SaleCard extends StatelessWidget {
 
   void _confirmCancel(BuildContext context) {
     final repo = context.read<InventoryRepository>();
+    final user = context.read<AuthService>().currentUser!;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -429,7 +430,7 @@ class _SaleCard extends StatelessWidget {
             style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () async {
               Navigator.pop(dialogContext);
-              await repo.cancelSale(sale.id);
+              await repo.cancelSale(sale.id, userName: user.name);
               if (!context.mounted) return;
               showSuccessSnackBar(
                 context,
