@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_theme.dart';
 import '../models/models.dart';
+import '../utils/ticket_outcome.dart';
 
 /// Tarjeta con efecto glassmorphism del design system AURA VITAE.
 ///
@@ -660,4 +661,29 @@ void showErrorSnackBar(BuildContext context, String message) {
       ),
     ),
   );
+}
+
+/// Avisa al usuario qué pasó con el ticket. Cuando la impresión sale bien
+/// no se dice nada: el diálogo del navegador ya es la confirmación.
+void showTicketOutcome(
+  BuildContext context,
+  TicketOutcome outcome,
+  String folio,
+) {
+  switch (outcome) {
+    case TicketOutcome.printed:
+      break;
+    case TicketOutcome.downloaded:
+      showSuccessSnackBar(
+        context,
+        'El navegador bloqueó la impresión, así que el ticket se descargó '
+        'como Ticket-$folio.html. Ábrelo para imprimirlo.',
+      );
+    case TicketOutcome.unavailable:
+      showErrorSnackBar(
+        context,
+        'No se pudo generar el ticket $folio en este navegador. '
+        'Inténtalo desde otro navegador o vuelve a intentarlo.',
+      );
+  }
 }

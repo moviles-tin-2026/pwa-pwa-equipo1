@@ -38,6 +38,9 @@ dependencies:
   firebase_auth: ^6.5.4
   provider: ^6.1.5+1
   cloud_firestore: ^6.6.0
+  # Interop del DOM para el ticket de venta. Reemplaza a `dart:html`, que no
+  # existe en la compilación `--wasm` con la que se publica el sitio.
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
