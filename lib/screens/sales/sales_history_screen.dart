@@ -381,7 +381,10 @@ class _SaleCard extends StatelessWidget {
 
   /// Reimprime el ticket de un folio ya guardado: los datos salen de la
   /// misma venta de Firestore y el SKU se resuelve contra el catálogo.
-  void _reprint(BuildContext sheetContext, BuildContext pageContext) {
+  Future<void> _reprint(
+    BuildContext sheetContext,
+    BuildContext pageContext,
+  ) async {
     Navigator.pop(sheetContext);
     if (!kIsWeb) {
       showErrorSnackBar(
@@ -391,23 +394,18 @@ class _SaleCard extends StatelessWidget {
       return;
     }
     final repo = pageContext.read<InventoryRepository>();
-    var launched = false;
+    var outcome = TicketOutcome.unavailable;
     try {
-      launched = printTicket(
+      outcome = await printTicket(
         sale,
         skuByProductId: {for (final p in repo.products) p.id: p.sku},
         reprint: true,
       );
     } catch (_) {
-      launched = false;
+      outcome = TicketOutcome.unavailable;
     }
-    if (!launched) {
-      showErrorSnackBar(
-        pageContext,
-        'No se pudo abrir el ticket. Permite las ventanas emergentes '
-        'de este sitio e inténtalo de nuevo.',
-      );
-    }
+    if (!pageContext.mounted) return;
+    showTicketOutcome(pageContext, outcome, sale.folio);
   }
 
   void _confirmCancel(BuildContext context) {

@@ -132,7 +132,8 @@ class _PosScreenState extends State<PosScreen> {
             child: const Text('Aceptar'),
           ),
           FilledButton.icon(
-            onPressed: () {
+            onPressed: () async {
+              Navigator.pop(dialogContext);
               if (!kIsWeb) {
                 showErrorSnackBar(
                   context,
@@ -140,25 +141,19 @@ class _PosScreenState extends State<PosScreen> {
                 );
                 return;
               }
-              var launched = false;
+              var outcome = TicketOutcome.unavailable;
               try {
-                launched = printTicket(
+                outcome = await printTicket(
                   sale,
                   skuByProductId: {
                     for (final p in repo.products) p.id: p.sku,
                   },
                 );
               } catch (_) {
-                launched = false;
+                outcome = TicketOutcome.unavailable;
               }
-              Navigator.pop(dialogContext);
-              if (!launched) {
-                showErrorSnackBar(
-                  context,
-                  'No se pudo abrir el ticket. Permite las ventanas '
-                  'emergentes de este sitio e inténtalo de nuevo.',
-                );
-              }
+              if (!mounted) return;
+              showTicketOutcome(context, outcome, sale.folio);
             },
             icon: const Icon(Icons.print_outlined),
             label: const Text('Imprimir ticket'),
