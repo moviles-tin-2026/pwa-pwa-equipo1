@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -23,9 +24,36 @@ void main() {
   // (ver `AuthService`), no antes de dibujar.
   final firebaseReady = Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-  );
+  ).then((_) => _enableOfflinePersistence());
 
   runApp(PymeSyncApp(firebaseReady: firebaseReady));
+}
+
+/// Enciende la caché local de Firestore.
+///
+/// En web viene apagada por defecto (en móvil y escritorio, encendida), y
+/// sin ella la PWA arrancaba sin conexión pero con las pantallas vacías:
+/// el service worker cachea la app, no los datos. Con la caché activa, lo
+/// que ya se consultó se puede volver a consultar sin red.
+///
+/// Va encadenado a `initializeApp` porque los ajustes deben aplicarse
+/// antes de la primera operación de Firestore, y todo lo que toca
+/// Firestore espera este mismo `Future` (ver `AuthService`).
+///
+/// Ojo: esto habilita **lecturas** sin conexión. Las escrituras del POS y
+/// de movimientos usan transacciones, que Firestore no puede resolver sin
+/// red porque necesita leer el stock del servidor para descontarlo de
+/// forma atómica.
+Future<void> _enableOfflinePersistence() async {
+  try {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  } catch (_) {
+    // Con varias pestañas abiertas, solo una puede tomar la persistencia
+    // en web. La app funciona igual, sin caché local en esa pestaña.
+  }
 }
 
 /// PyME-Sync — Control de Inventarios y Ventas Multiplataforma.

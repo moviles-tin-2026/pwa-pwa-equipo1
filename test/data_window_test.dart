@@ -165,7 +165,7 @@ class _FakeRepository extends InventoryRepository {
       throw UnimplementedError();
 
   @override
-  Future<void> cancelSale(String saleId, {required String userName}) async =>
+  Future<String?> cancelSale(String saleId, {required String userName}) async =>
       throw UnimplementedError();
 
   @override

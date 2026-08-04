@@ -7,7 +7,10 @@
  * - Navegaciones: red primero con fallback al index cacheado (offline).
  * - Estáticos del mismo origen: caché primero, poblada bajo demanda.
  * - Peticiones a otros orígenes (Firestore, Google Fonts, imágenes de
- *   Drive) NO se interceptan: Firestore maneja su propia persistencia.
+ *   Drive) NO se interceptan: los datos los cachea Firestore con su
+ *   persistencia local, que la app enciende al arrancar (ver
+ *   `_enableOfflinePersistence` en `lib/main.dart`). Interceptarlas aquí
+ *   duplicaría ese trabajo y rompería la sincronización en vivo.
  *
  * CACHE_VERSION identifica el caché de este build. Como los estáticos se
  * sirven caché-primero, si no cambia entre builds los navegadores que ya
