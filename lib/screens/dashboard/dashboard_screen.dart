@@ -208,7 +208,16 @@ class _TopProductsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(title: 'Productos más vendidos'),
+            // El ranking sale de las ventas sincronizadas, que van por
+            // ventana de fechas: se dice cuál para que el número no se
+            // lea como un histórico completo.
+            SectionHeader(
+              title: 'Productos más vendidos',
+              action: Text(
+                'Últimos ${InventoryRepository.salesWindowMonths} meses',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
             const SizedBox(height: 16),
             if (top.isEmpty)
               const EmptyState(

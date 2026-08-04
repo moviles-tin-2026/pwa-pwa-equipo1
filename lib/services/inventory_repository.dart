@@ -11,6 +11,41 @@ import '../models/models.dart';
 /// Las pantallas solo dependen de esta clase, por lo que el backend es
 /// transparente para la UI.
 abstract class InventoryRepository extends ChangeNotifier {
+  InventoryRepository() : _startedAt = DateTime.now();
+
+  /// Momento en que se abrió la sesión de datos. Fija el inicio de las
+  /// ventanas para que no se muevan mientras la app está abierta: si se
+  /// recalcularan a cada consulta, la UI y los datos podrían discrepar.
+  final DateTime _startedAt;
+
+  // ---------------- Ventana de datos sincronizada ----------------
+  //
+  // Ventas y movimientos se traen acotados POR FECHA, no por número de
+  // documentos. Antes eran `limit(300)` y `limit(200)`: al pasar esos
+  // volúmenes, el dashboard reportaba de menos sin avisar y Movimientos
+  // dejaba de ser la bitácora que promete la documentación. Con una
+  // ventana de fechas el recorte es explícito, se puede escribir en
+  // pantalla y las métricas del período son exactas.
+
+  /// Meses de ventas sincronizados. Cubre de sobra el gráfico de 6 meses
+  /// y el total del mes en curso.
+  static const int salesWindowMonths = 12;
+
+  /// Días de movimientos sincronizados. Cubre los filtros del módulo
+  /// (hoy, 7 y 30 días) con margen para rangos personalizados.
+  static const int movementsWindowDays = 90;
+
+  /// Primer día del mes con el que arranca la ventana de ventas.
+  DateTime get salesWindowStart => DateTime(
+        _startedAt.year,
+        _startedAt.month - (salesWindowMonths - 1),
+      );
+
+  /// Primer día de la ventana de movimientos.
+  DateTime get movementsWindowStart =>
+      DateTime(_startedAt.year, _startedAt.month, _startedAt.day)
+          .subtract(const Duration(days: movementsWindowDays - 1));
+
   @protected
   final List<Category> categoriesCache = [];
   @protected

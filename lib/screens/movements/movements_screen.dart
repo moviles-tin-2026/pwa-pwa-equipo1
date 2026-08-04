@@ -64,6 +64,15 @@ class _MovementsScreenState extends State<MovementsScreen> {
     }
   }
 
+  /// `true` si el filtro de fechas pide datos anteriores a la ventana que
+  /// el repositorio sincroniza; entonces la lista está incompleta y hay
+  /// que decirlo en pantalla.
+  bool _rangeStartsBeforeWindow(InventoryRepository repo) {
+    final range = _effectiveDateRange();
+    if (range == null) return false;
+    return range.start.isBefore(repo.movementsWindowStart);
+  }
+
   List<StockMovement> _filter(InventoryRepository repo) {
     final dateRange = _effectiveDateRange();
     return repo.movements.where((m) {
@@ -334,16 +343,67 @@ class _MovementsScreenState extends State<MovementsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(padding, 12, padding, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${movements.length} movimiento${movements.length == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${movements.length} movimiento${movements.length == 1 ? '' : 's'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
-                  ),
+                    // La bitácora se sincroniza por ventana de fechas, así
+                    // que se dice cuál es: sin esto, un filtro más antiguo
+                    // parecería "sin movimientos" en vez de "fuera del
+                    // período sincronizado".
+                    const SizedBox(height: 2),
+                    Text(
+                      'Bitácora desde el '
+                      '${formatDate(repo.movementsWindowStart)} '
+                      '(${InventoryRepository.movementsWindowDays} días)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    if (_rangeStartsBeforeWindow(repo)) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warning.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              size: 14,
+                              color: AppTheme.warning,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'El rango elegido empieza antes del período '
+                                'sincronizado: lo anterior a esa fecha no se '
+                                'muestra aquí.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

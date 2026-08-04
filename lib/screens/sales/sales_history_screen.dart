@@ -64,7 +64,9 @@ class SalesHistoryScreen extends StatelessWidget {
                           children: [
                             Text(
                               isAdmin
-                                  ? 'Ingresos totales (histórico)'
+                                  ? 'Ingresos de los últimos '
+                                      '${InventoryRepository.salesWindowMonths} '
+                                      'meses'
                                   : 'Total del turno (hoy)',
                               style: TextStyle(
                                 fontFamily: 'Inter',
