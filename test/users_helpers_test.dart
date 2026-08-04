@@ -41,6 +41,30 @@ void main() {
     });
   });
 
+  group('validatePasswordConfirmation', () {
+    test('acepta cuando coincide', () {
+      expect(
+        validatePasswordConfirmation('AuraVita2026!', 'AuraVita2026!'),
+        isNull,
+      );
+    });
+
+    test('rechaza vacía o distinta', () {
+      expect(
+        validatePasswordConfirmation('', 'AuraVita2026!'),
+        'Repite la contraseña nueva',
+      );
+      expect(
+        validatePasswordConfirmation(null, 'AuraVita2026!'),
+        'Repite la contraseña nueva',
+      );
+      expect(
+        validatePasswordConfirmation('AuraVita2026', 'AuraVita2026!'),
+        'Las contraseñas no coinciden',
+      );
+    });
+  });
+
   group('generateTemporaryPassword', () {
     test('lo que genera siempre pasa la validación', () {
       // Semillas fijas: la prueba no debe depender del azar de un día.

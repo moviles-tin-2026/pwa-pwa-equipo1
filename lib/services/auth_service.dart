@@ -103,7 +103,7 @@ class AuthService extends ChangeNotifier {
         await FirebaseAuth.instance.signOut();
         _currentUser = null;
       } else {
-        _currentUser = profile;
+        _currentUser = await _syncAccountEmail(profile, email);
       }
     } catch (_) {
       _currentUser = null;
@@ -111,6 +111,29 @@ class AuthService extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  /// Alinea `users/{uid}.email` con el correo real de Firebase Auth.
+  ///
+  /// El sistema no cambia correos de usuario: el correo es la identidad de
+  /// la persona en el CRM. Pero si alguien lo cambia desde la consola de
+  /// Firebase, el perfil de Firestore se quedaría con el anterior y tanto
+  /// Configuración como la lista de usuarios mostrarían un correo que ya
+  /// no sirve para iniciar sesión. Esto lo corrige al cargar el perfil.
+  Future<AppUser> _syncAccountEmail(AppUser profile, String authEmail) async {
+    if (authEmail.isEmpty || profile.email.toLowerCase() == authEmail) {
+      return profile;
+    }
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(profile.id)
+          .update({'email': authEmail});
+    } catch (_) {
+      // Si las reglas o la red lo impiden, seguir con el correo de Auth en
+      // memoria: es el bueno, y el documento se corregirá en otro arranque.
+    }
+    return profile.copyWith(email: authEmail);
   }
 
   @override
@@ -378,44 +401,58 @@ class AuthService extends ChangeNotifier {
     return current.email;
   }
 
-  /// Arranca el cambio del correo **de la cuenta** hacia [newEmail].
+  /// Cambia la contraseña de la sesión actual sin pasar por el correo.
   ///
-  /// Firebase manda un enlace de verificación a la dirección nueva y solo
-  /// aplica el cambio cuando la persona lo abre desde esa bandeja. Ese es
-  /// el camino para que un correo real reciba el restablecimiento de
-  /// contraseña: al confirmarlo, ese correo pasa a ser el de la cuenta.
-  Future<void> startAccountEmailChange(String newEmail) async {
+  /// Primero reautentica con la contraseña actual: Firebase exige
+  /// autenticación reciente para `updatePassword`, y pedirla evita que
+  /// alguien cambie la contraseña en una sesión ajena que quedó abierta.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
     await _ensureReady();
-    final normalized = newEmail.trim().toLowerCase();
     final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser == null) {
+    final email = firebaseUser?.email;
+    if (firebaseUser == null || email == null || email.isEmpty) {
       throw const AuthException('Tu sesión expiró. Vuelve a iniciar sesión.');
     }
-    if (normalized.isEmpty) {
-      throw const AuthException('Escribe primero un correo de recuperación.');
-    }
-    if (normalized == firebaseUser.email?.trim().toLowerCase()) {
+    if (currentPassword == newPassword) {
       throw const AuthException(
-        'Ese correo ya es el de tu cuenta.',
+        'La contraseña nueva debe ser distinta de la actual.',
       );
     }
 
     try {
-      await firebaseUser.verifyBeforeUpdateEmail(normalized);
+      await firebaseUser.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: currentPassword),
+      );
     } on FirebaseAuthException catch (e) {
       throw AuthException(switch (e.code) {
-        'requires-recent-login' =>
-          'Por seguridad, vuelve a iniciar sesión antes de cambiar tu '
-              'correo y repite la operación.',
-        'email-already-in-use' =>
-          'Ese correo ya pertenece a otra cuenta del sistema',
-        'invalid-email' => 'El correo no es válido',
-        'operation-not-allowed' =>
-          'La consola de Firebase no permite cambiar el correo. Revisa '
-              'la configuración de Authentication.',
+        'wrong-password' || 'invalid-credential' =>
+          'La contraseña actual es incorrecta',
+        'too-many-requests' =>
+          'Demasiados intentos seguidos. Espera unos minutos e intenta '
+              'de nuevo.',
+        'user-mismatch' || 'user-not-found' =>
+          'Tu sesión ya no corresponde a esta cuenta. Vuelve a iniciar '
+              'sesión.',
         'network-request-failed' =>
           'Sin conexión a internet. Intenta de nuevo.',
-        _ => 'No se pudo cambiar el correo (${e.code})',
+        _ => 'No se pudo verificar tu contraseña actual (${e.code})',
+      });
+    }
+
+    try {
+      await firebaseUser.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(switch (e.code) {
+        'weak-password' =>
+          'Firebase rechazó la contraseña por débil. Usa una más larga.',
+        'requires-recent-login' =>
+          'Por seguridad, vuelve a iniciar sesión e intenta de nuevo.',
+        'network-request-failed' =>
+          'Sin conexión a internet. Intenta de nuevo.',
+        _ => 'No se pudo cambiar la contraseña (${e.code})',
       });
     }
   }
