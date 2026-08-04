@@ -454,7 +454,6 @@ class CompiledApp {
       _1365: x0 => globalThis.firebase_firestore.getDocFromCache(x0),
       _1366: (x0,x1) => ({includeMetadataChanges: x0,source: x1}),
       _1369: (x0,x1,x2,x3) => globalThis.firebase_firestore.onSnapshot(x0,x1,x2,x3),
-      _1371: (x0,x1,x2) => globalThis.firebase_firestore.setDoc(x0,x1,x2),
       _1372: (x0,x1) => globalThis.firebase_firestore.setDoc(x0,x1),
       _1373: (x0,x1) => globalThis.firebase_firestore.query(x0,x1),
       _1374: x0 => globalThis.firebase_firestore.getDocs(x0),
