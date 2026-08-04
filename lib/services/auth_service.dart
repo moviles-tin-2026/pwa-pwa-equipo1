@@ -373,19 +373,8 @@ class AuthService extends ChangeNotifier {
     if (current == null || current.email.isEmpty) {
       throw const AuthException('Tu sesión expiró. Vuelve a iniciar sesión.');
     }
-    try {
-      await sendPasswordReset(current.email);
-    } on FirebaseAuthException catch (e) {
-      throw AuthException(switch (e.code) {
-        'user-not-found' =>
-          'Firebase no reconoce el correo de tu cuenta. Contacta al '
-              'administrador.',
-        'invalid-email' => 'El correo de tu cuenta no es válido',
-        'network-request-failed' =>
-          'Sin conexión a internet. Intenta de nuevo.',
-        _ => 'No se pudo enviar el enlace (${e.code})',
-      });
-    }
+    // `sendPasswordReset` ya traduce el fallo a AuthException.
+    await sendPasswordReset(current.email);
     return current.email;
   }
 
@@ -431,9 +420,29 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Pide a Firebase el enlace de restablecimiento para [email].
+  ///
+  /// Traduce el fallo a [AuthException] igual que [signIn]: antes lanzaba
+  /// la excepción cruda de Firebase y quien llamaba no la esperaba, así que
+  /// un correo inexistente o mal escrito se anunciaba como enviado.
   Future<void> sendPasswordReset(String email) async {
     await _ensureReady();
-    await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+    final normalized = email.trim().toLowerCase();
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: normalized);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(switch (e.code) {
+        'invalid-email' || 'missing-email' =>
+          'Escribe un correo válido (ej. nombre@dominio.com)',
+        'user-not-found' => 'No existe una cuenta con ese correo',
+        'too-many-requests' =>
+          'Demasiados intentos seguidos. Espera unos minutos e intenta '
+              'de nuevo.',
+        'network-request-failed' =>
+          'Sin conexión a internet. Intenta de nuevo.',
+        _ => 'No se pudo enviar el enlace (${e.code})',
+      });
+    }
   }
 
   Future<void> signOut() async {

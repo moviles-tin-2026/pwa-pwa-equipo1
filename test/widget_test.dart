@@ -36,4 +36,38 @@ void main() {
     expect(find.text('Ingresa tu correo electrónico'), findsOneWidget);
     expect(find.text('Ingresa tu contraseña'), findsOneWidget);
   });
+
+  // El restablecimiento anunciaba "enlace enviado" con cualquier texto,
+  // incluso uno que no era un correo, porque no validaba el formato ni
+  // esperaba la respuesta de Firebase.
+  testWidgets('El restablecimiento rechaza un correo sin formato válido',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(buildLogin());
+
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'pamelaruiz',
+    );
+    await tester.tap(find.text('¿Olvidaste tu contraseña?'));
+    await tester.pump();
+
+    // Aparece dos veces: bajo el campo (autovalidación) y en el snackbar.
+    expect(
+      find.text('Ingresa un correo válido (ej. nombre@dominio.com)'),
+      findsAtLeastNWidgets(1),
+    );
+    // Y sobre todo: no anuncia un envío que nunca ocurrió.
+    expect(find.textContaining('llegará en unos minutos'), findsNothing);
+  });
+
+  testWidgets('El restablecimiento pide el correo cuando está vacío',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(buildLogin());
+
+    await tester.tap(find.text('¿Olvidaste tu contraseña?'));
+    await tester.pump();
+
+    expect(find.text('Ingresa tu correo electrónico'), findsOneWidget);
+    expect(find.textContaining('llegará en unos minutos'), findsNothing);
+  });
 }

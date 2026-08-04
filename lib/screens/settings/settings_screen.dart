@@ -105,7 +105,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final email = await _auth.sendPasswordResetToAccountEmail();
       if (!mounted) return;
-      showSuccessSnackBar(context, 'Enlace enviado a $email');
+      showSuccessSnackBar(
+        context,
+        'Enlace enviado a $email. Revisa también la carpeta de spam.',
+      );
     } on AuthException catch (e) {
       if (!mounted) return;
       showErrorSnackBar(context, e.message);
