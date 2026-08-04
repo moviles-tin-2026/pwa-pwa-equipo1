@@ -7,7 +7,10 @@
  * - Navegaciones: red primero con fallback al index cacheado (offline).
  * - Estáticos del mismo origen: caché primero, poblada bajo demanda.
  * - Peticiones a otros orígenes (Firestore, Google Fonts, imágenes de
- *   Drive) NO se interceptan: Firestore maneja su propia persistencia.
+ *   Drive) NO se interceptan: los datos los cachea Firestore con su
+ *   persistencia local, que la app enciende al arrancar (ver
+ *   `_enableOfflinePersistence` en `lib/main.dart`). Interceptarlas aquí
+ *   duplicaría ese trabajo y rompería la sincronización en vivo.
  *
  * CACHE_VERSION identifica el caché de este build. Como los estáticos se
  * sirven caché-primero, si no cambia entre builds los navegadores que ya
@@ -16,7 +19,7 @@
  * del commit antes de publicar (ver `.github/workflows/deploy-pages.yml`);
  * el valor de abajo es solo el de desarrollo local.
  */
-const CACHE_VERSION = 'aura-vitae-8dc0a65';
+const CACHE_VERSION = 'aura-vitae-8533724';
 
 // Solo el shell ligero (~400 KB). Los binarios pesados quedan FUERA a
 // propósito: `main.dart.wasm` (2.7 MB), `main.dart.js` (3.2 MB, el
