@@ -41,10 +41,16 @@ class FirestoreInventoryRepository extends InventoryRepository {
           ..addAll(snap.docs.map((d) => Product.fromMap(d.id, d.data())));
         notifyListeners();
       }),
+      // Acotado por fecha, no por número de documentos: ver la ventana en
+      // `InventoryRepository`. Un `limit(n)` recortaba la bitácora en
+      // silencio y falseaba las métricas al crecer el negocio.
       _db
           .collection('movements')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: movementsWindowStart.millisecondsSinceEpoch,
+          )
           .orderBy('date', descending: true)
-          .limit(200)
           .snapshots()
           .listen((snap) {
         movementsCache
@@ -54,8 +60,11 @@ class FirestoreInventoryRepository extends InventoryRepository {
       }),
       _db
           .collection('sales')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: salesWindowStart.millisecondsSinceEpoch,
+          )
           .orderBy('date', descending: true)
-          .limit(300)
           .snapshots()
           .listen((snap) {
         salesCache
