@@ -288,6 +288,118 @@ class AuthService extends ChangeNotifier {
 
   static const String _provisioningAppName = 'pymesync-user-provisioning';
 
+  // ---------------- Perfil propio (Configuración) ----------------
+
+  /// Guarda los campos que cada quien puede editar de su propio perfil.
+  ///
+  /// Las reglas de Firestore solo dejan tocar `name`, `recoveryEmail` y
+  /// `startSection`: el rol y la baja son del administrador.
+  Future<AppUser> updateOwnProfile({
+    String? name,
+    String? recoveryEmail,
+    String? startSection,
+  }) async {
+    await _ensureReady();
+    final current = _currentUser;
+    if (current == null) {
+      throw const AuthException('Tu sesión expiró. Vuelve a iniciar sesión.');
+    }
+
+    final updated = current.copyWith(
+      name: name?.trim(),
+      recoveryEmail: recoveryEmail?.trim().toLowerCase(),
+      startSection: startSection,
+    );
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(current.id).set(
+        {
+          'name': updated.name,
+          'recoveryEmail': updated.recoveryEmail,
+          'startSection': updated.startSection,
+        },
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      throw const AuthException(
+        'No se pudieron guardar los cambios. Revisa tu conexión '
+        'e intenta de nuevo.',
+      );
+    }
+
+    _currentUser = updated;
+    notifyListeners();
+    return updated;
+  }
+
+  /// Envía el enlace de restablecimiento al correo **de la cuenta**.
+  ///
+  /// Firebase no permite mandarlo a otra dirección: el correo de
+  /// recuperación del perfil no recibe nada mientras no sea el correo de la
+  /// cuenta (ver [startAccountEmailChange]).
+  Future<String> sendPasswordResetToAccountEmail() async {
+    final current = _currentUser;
+    if (current == null || current.email.isEmpty) {
+      throw const AuthException('Tu sesión expiró. Vuelve a iniciar sesión.');
+    }
+    try {
+      await sendPasswordReset(current.email);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(switch (e.code) {
+        'user-not-found' =>
+          'Firebase no reconoce el correo de tu cuenta. Contacta al '
+              'administrador.',
+        'invalid-email' => 'El correo de tu cuenta no es válido',
+        'network-request-failed' =>
+          'Sin conexión a internet. Intenta de nuevo.',
+        _ => 'No se pudo enviar el enlace (${e.code})',
+      });
+    }
+    return current.email;
+  }
+
+  /// Arranca el cambio del correo **de la cuenta** hacia [newEmail].
+  ///
+  /// Firebase manda un enlace de verificación a la dirección nueva y solo
+  /// aplica el cambio cuando la persona lo abre desde esa bandeja. Ese es
+  /// el camino para que un correo real reciba el restablecimiento de
+  /// contraseña: al confirmarlo, ese correo pasa a ser el de la cuenta.
+  Future<void> startAccountEmailChange(String newEmail) async {
+    await _ensureReady();
+    final normalized = newEmail.trim().toLowerCase();
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      throw const AuthException('Tu sesión expiró. Vuelve a iniciar sesión.');
+    }
+    if (normalized.isEmpty) {
+      throw const AuthException('Escribe primero un correo de recuperación.');
+    }
+    if (normalized == firebaseUser.email?.trim().toLowerCase()) {
+      throw const AuthException(
+        'Ese correo ya es el de tu cuenta.',
+      );
+    }
+
+    try {
+      await firebaseUser.verifyBeforeUpdateEmail(normalized);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(switch (e.code) {
+        'requires-recent-login' =>
+          'Por seguridad, vuelve a iniciar sesión antes de cambiar tu '
+              'correo y repite la operación.',
+        'email-already-in-use' =>
+          'Ese correo ya pertenece a otra cuenta del sistema',
+        'invalid-email' => 'El correo no es válido',
+        'operation-not-allowed' =>
+          'La consola de Firebase no permite cambiar el correo. Revisa '
+              'la configuración de Authentication.',
+        'network-request-failed' =>
+          'Sin conexión a internet. Intenta de nuevo.',
+        _ => 'No se pudo cambiar el correo (${e.code})',
+      });
+    }
+  }
+
   Future<void> sendPasswordReset(String email) async {
     await _ensureReady();
     await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());

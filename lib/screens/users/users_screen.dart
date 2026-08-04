@@ -102,6 +102,19 @@ class _UsersScreenState extends State<UsersScreen> {
                           user.email,
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
+                        // Correo real de contacto que la persona registra
+                        // en Configuración: sirve para localizarla cuando
+                        // el correo de la cuenta es interno o ficticio.
+                        if (user.recoveryEmail.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Recuperación: ${user.recoveryEmail}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 6),
                         Row(
                           children: [
