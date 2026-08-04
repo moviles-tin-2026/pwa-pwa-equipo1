@@ -274,7 +274,7 @@ class FirestoreInventoryRepository extends InventoryRepository {
   }
 
   @override
-  Future<void> cancelSale(String saleId) async {
+  Future<void> cancelSale(String saleId, {required String userName}) async {
     await _db.runTransaction<void>((tx) async {
       final saleRef = _db.collection('sales').doc(saleId);
       final saleSnap = await tx.get(saleRef);
@@ -282,19 +282,46 @@ class FirestoreInventoryRepository extends InventoryRepository {
       final sale = Sale.fromMap(saleSnap.id, saleSnap.data()!);
       if (sale.cancelled) return;
 
-      final restores =
-          <({DocumentReference<Map<String, dynamic>> ref, int newStock})>[];
+      final restores = <({
+        DocumentReference<Map<String, dynamic>> ref,
+        Product product,
+        SaleItem item,
+        int newStock,
+      })>[];
       for (final item in sale.items) {
         final ref = _db.collection('products').doc(item.productId);
         final snap = await tx.get(ref);
         if (snap.exists) {
           final product = Product.fromMap(snap.id, snap.data()!);
-          restores.add((ref: ref, newStock: product.stock + item.quantity));
+          restores.add((
+            ref: ref,
+            product: product,
+            item: item,
+            newStock: product.stock + item.quantity,
+          ));
         }
       }
 
+      // Devolver el stock y dejar la entrada correspondiente en la bitácora:
+      // sin este movimiento la trazabilidad quedaría rota (el inventario
+      // sube sin que ningún registro explique por qué).
+      final now = DateTime.now();
       for (final restore in restores) {
         tx.update(restore.ref, {'stock': restore.newStock});
+        final mRef = _db.collection('movements').doc();
+        tx.set(
+          mRef,
+          StockMovement(
+            id: mRef.id,
+            productId: restore.product.id,
+            productName: restore.product.name,
+            type: MovementType.entry,
+            quantity: restore.item.quantity,
+            reason: 'Devolución por cancelación: ${sale.folio}',
+            userName: userName,
+            date: now,
+          ).toMap(),
+        );
       }
       tx.update(saleRef, {'cancelled': true});
     });
