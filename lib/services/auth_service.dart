@@ -254,16 +254,17 @@ class AuthService extends ChangeNotifier {
           'Sin conexión a internet. Intenta de nuevo.',
         _ => 'No se pudo crear la cuenta (${e.code})',
       });
-    } catch (_) {
+    } catch (e) {
       // La cuenta se creó pero el perfil no: sin documento en `users` el
       // rol quedaría indefinido, así que se deshace el alta en vez de
       // dejar una cuenta huérfana.
       try {
         await created?.delete();
       } catch (_) {}
-      throw const AuthException(
-        'La cuenta no se pudo registrar en la base de datos. Verifica tu '
-        'conexión y que tu sesión siga activa.',
+      throw AuthException(
+        e is FirebaseException
+            ? _firestoreMessage(e, action: 'registrar el perfil del usuario')
+            : 'La cuenta no se pudo registrar en la base de datos ($e).',
       );
     } finally {
       // Cerrar la sesión que quedó abierta en la app secundaria. La del
@@ -312,17 +313,23 @@ class AuthService extends ChangeNotifier {
     );
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(current.id).set(
-        {
-          'name': updated.name,
-          'recoveryEmail': updated.recoveryEmail,
-          'startSection': updated.startSection,
-        },
-        SetOptions(merge: true),
-      );
-    } catch (_) {
-      throw const AuthException(
-        'No se pudieron guardar los cambios. Revisa tu conexión '
+      // `update` y no `set(merge)` a propósito: si el documento no existe,
+      // `set` sería una creación y las reglas la rechazarían por no traer
+      // el rol, dando un `permission-denied` que despista. Con `update` el
+      // error es `not-found`, que dice exactamente qué pasa.
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(current.id)
+          .update({
+        'name': updated.name,
+        'recoveryEmail': updated.recoveryEmail,
+        'startSection': updated.startSection,
+      });
+    } on FirebaseException catch (e) {
+      throw AuthException(_firestoreMessage(e, action: 'guardar tu perfil'));
+    } catch (e) {
+      throw AuthException(
+        'No se pudieron guardar los cambios ($e). Revisa tu conexión '
         'e intenta de nuevo.',
       );
     }
@@ -331,6 +338,30 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
     return updated;
   }
+
+  /// Traduce un error de Firestore a un mensaje que diga qué pasó.
+  ///
+  /// El `permission-denied` importa especialmente: casi siempre significa
+  /// que las reglas de `firestore.rules` no están publicadas en el
+  /// proyecto (viajan en el repo, pero el deploy de Pages no las sube).
+  /// Un mensaje genérico de "revisa tu conexión" manda a buscar el
+  /// problema al lado equivocado.
+  String _firestoreMessage(FirebaseException e, {required String action}) =>
+      switch (e.code) {
+        'permission-denied' =>
+          'Tu cuenta no tiene permiso para $action. Si el problema '
+              'persiste, revisa que las reglas de Firestore estén '
+              'publicadas en el proyecto.',
+        'unauthenticated' =>
+          'Tu sesión expiró. Vuelve a iniciar sesión e intenta de nuevo.',
+        'unavailable' || 'deadline-exceeded' =>
+          'No se pudo contactar a la base de datos. Revisa tu conexión '
+              'e intenta de nuevo.',
+        'not-found' =>
+          'No se encontró tu perfil en la base de datos. Contacta al '
+              'administrador.',
+        _ => 'No se pudo $action (${e.code}).',
+      };
 
   /// Envía el enlace de restablecimiento al correo **de la cuenta**.
   ///
