@@ -74,26 +74,52 @@ class _UsersScreenState extends State<UsersScreen> {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: (user.isAdmin ? AppTheme.brandNavy : AppTheme.brandBlue).withValues(alpha: 0.12),
-                    child: Text(user.name.isEmpty ? '?' : user.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    backgroundColor:
+                        (user.isAdmin ? AppTheme.brandNavy : AppTheme.brandBlue)
+                            .withValues(alpha: 0.12),
+                    child: Text(
+                      user.name.isEmpty ? '?' : user.name[0].toUpperCase(),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                        Text(
+                          user.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(user.email, style: TextStyle(color: Colors.grey.shade600)),
+                        Text(
+                          user.email,
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
                         const SizedBox(height: 6),
-                        Row(children: [RoleBadge(role: user.role), const SizedBox(width: 8), if (user.active) const Chip(label: Text('Activo')) else const Chip(label: Text('Inactivo'))]),
+                        Row(
+                          children: [
+                            RoleBadge(role: user.role),
+                            const SizedBox(width: 8),
+                            if (user.active)
+                              const Chip(label: Text('Activo'))
+                            else
+                              const Chip(label: Text('Inactivo')),
+                          ],
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
               const Divider(height: 18),
-              const Text('Historial reciente', style: TextStyle(fontWeight: FontWeight.w700)),
+              const Text(
+                'Historial reciente',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 220),
@@ -109,7 +135,10 @@ class _UsersScreenState extends State<UsersScreen> {
                         Text(entry.action),
                         Text(
                           '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     );
@@ -120,7 +149,10 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cerrar')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
         ],
       ),
     );
@@ -316,12 +348,14 @@ class _UsersScreenState extends State<UsersScreen> {
                     FilterChip(
                       label: const Text('Activos'),
                       selected: _statusFilter == true,
-                      onSelected: (s) => setState(() => _statusFilter = s ? true : null),
+                      onSelected: (s) =>
+                          setState(() => _statusFilter = s ? true : null),
                     ),
                     FilterChip(
                       label: const Text('Inactivos'),
                       selected: _statusFilter == false,
-                      onSelected: (s) => setState(() => _statusFilter = s ? false : null),
+                      onSelected: (s) =>
+                          setState(() => _statusFilter = s ? false : null),
                     ),
                   ],
                 ),
@@ -345,7 +379,13 @@ class _UsersScreenState extends State<UsersScreen> {
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: isMobile ? 2.6 : 3.2,
-              children: [for (final user in users) InkWell(onTap: () => _showUserDetail(context, user), child: _UserTile(user: user))],
+              children: [
+                for (final user in users)
+                  InkWell(
+                    onTap: () => _showUserDetail(context, user),
+                    child: _UserTile(user: user),
+                  ),
+              ],
             ),
         ],
       ),
@@ -356,9 +396,8 @@ class _UsersScreenState extends State<UsersScreen> {
     return FilterChip(
       label: Text(label),
       selected: _roleFilter == role,
-      onSelected: (selected) => setState(
-        () => _roleFilter = selected ? role : null,
-      ),
+      onSelected: (selected) =>
+          setState(() => _roleFilter = selected ? role : null),
     );
   }
 }
@@ -502,10 +541,10 @@ class _UserTile extends StatelessWidget {
                       _showUserForm(context, user: user);
                       break;
                     case 'toggle':
-                      repo.updateUser(user.copyWith(active: !user.active));
+                      repo.updateUser(user.copyWith(active: true));
                       break;
-                    case 'delete':
-                      _confirmDelete(context, user);
+                    case 'deactivate':
+                      _confirmDeactivate(context, user);
                       break;
                   }
                 },
@@ -517,30 +556,28 @@ class _UserTile extends StatelessWidget {
                       title: Text('Editar / cambiar rol'),
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: ListTile(
-                      leading: Icon(
-                        user.active
-                            ? Icons.person_off_outlined
-                            : Icons.person_outline,
-                      ),
-                      title: Text(user.active ? 'Desactivar' : 'Reactivar'),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.delete_outline,
-                        color: AppTheme.danger,
-                      ),
-                      title: Text(
-                        'Eliminar',
-                        style: TextStyle(color: AppTheme.danger),
+                  if (!user.active)
+                    const PopupMenuItem(
+                      value: 'toggle',
+                      child: ListTile(
+                        leading: Icon(Icons.person_outline),
+                        title: Text('Reactivar'),
                       ),
                     ),
-                  ),
+                  if (user.active)
+                    const PopupMenuItem(
+                      value: 'deactivate',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.person_off_outlined,
+                          color: AppTheme.danger,
+                        ),
+                        title: Text(
+                          'Desactivar',
+                          style: TextStyle(color: AppTheme.danger),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -596,14 +633,14 @@ class _UserTile extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, AppUser user) {
+  void _confirmDeactivate(BuildContext context, AppUser user) {
     final repo = context.read<InventoryRepository>();
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar usuario'),
+        title: const Text('Desactivar usuario'),
         content: Text(
-          '¿Eliminar a "${user.name}"? Perderá el acceso al sistema.',
+          '¿Desactivar a "${user.name}"? Perderá el acceso al sistema.\n\nPor seguridad, las cuentas no se pueden eliminar por completo para mantener el historial de operaciones.',
         ),
         actions: [
           TextButton(
@@ -613,11 +650,11 @@ class _UserTile extends StatelessWidget {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () {
-              repo.deleteUser(user.id);
+              repo.updateUser(user.copyWith(active: false));
               Navigator.pop(dialogContext);
-              showSuccessSnackBar(context, 'Usuario eliminado');
+              showSuccessSnackBar(context, 'Usuario desactivado');
             },
-            child: const Text('Eliminar'),
+            child: const Text('Desactivar'),
           ),
         ],
       ),
