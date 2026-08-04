@@ -31,12 +31,18 @@ service cloud.firestore {
     }
 
     // Campos que cada quien puede editar de su propio perfil desde
-    // Configuración. Deja fuera `role`, `active` y `email` a propósito:
-    // el rol y la baja son del admin, y el correo de la cuenta lo cambia
-    // Firebase Auth tras verificar la dirección nueva.
+    // Configuración. Deja fuera `role` y `active` a propósito: el rol y la
+    // baja son del administrador.
+    //
+    // `email` se admite solo para copiar el correo que Firebase Auth ya
+    // verificó (cuando alguien convierte su correo de recuperación en el
+    // de la cuenta). Al exigir que coincida con el del token, el perfil no
+    // puede quedar apuntando a un correo que no sea el de la sesión.
     function onlyOwnProfileFieldsChanged() {
-      return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'recoveryEmail', 'startSection']);
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly(['name', 'recoveryEmail', 'startSection', 'email'])
+        && (!changed.hasAny(['email'])
+            || request.resource.data.email == request.auth.token.email);
     }
 
     match /users/{userId} {

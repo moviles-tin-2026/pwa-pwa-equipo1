@@ -31,9 +31,11 @@ La app ofrece gestión de inventario en tiempo real, punto de venta con transacc
 - **Módulo 2 — Catálogos e inventario:** productos, categorías, SKU, precios, márgenes y niveles de stock (mínimo / máximo).
 - **Módulo 3 — Movimientos de almacén:** entradas y salidas con motivo obligatorio.
 - **Módulo 4 — Punto de venta e historial:** POS con descuento atómico de inventario y cancelación de folios (solo Admin).
-- **Configuración de la cuenta** (ambos roles, desde el menú de usuario): nombre, correo de recuperación, enlace para cambiar la contraseña y sección de inicio del sistema.
+- **Configuración de la cuenta** (ambos roles, desde el menú de usuario): nombre, correo de recuperación, cambio de contraseña y sección de inicio del sistema.
 
-> **Correo de recuperación.** Firebase solo envía el enlace de restablecimiento al **correo de la cuenta**, nunca a una dirección alterna guardada en Firestore. Por eso Configuración permite guardar el correo real de contacto *y*, con el botón **Usar como correo de la cuenta**, convertirlo en el correo de acceso: Firebase manda una verificación a esa bandeja y, al confirmarla, ahí llegan tanto el inicio de sesión como los restablecimientos. Es la única forma de lograrlo sin un backend propio (Cloud Function + servicio de correo).
+> **Contraseñas y correos.** El sistema gestiona contraseñas, nunca identidades: el correo del usuario no se cambia desde la app, porque es su identidad en el CRM y de él cuelgan las ventas y movimientos que registró. Cada persona puede cambiar su contraseña desde *Configuración → Seguridad* introduciendo la actual, y registrar un **correo de recuperación** por adelantado.
+>
+> Límite conocido: Firebase solo envía el enlace de restablecimiento al correo de la cuenta, así que ese correo secundario queda registrado para que el administrador pueda devolverle el acceso a esa persona. Entregar el enlace directamente al correo secundario requiere un backend propio (Cloud Function con `generatePasswordResetLink` + un servicio de correo, lo que exige plan Blaze).
 
 ## 👥 Roles (RBAC)
 

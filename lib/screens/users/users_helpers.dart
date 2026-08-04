@@ -36,6 +36,15 @@ String? validateNewPassword(String? value) {
   return null;
 }
 
+/// Valida la confirmación de una contraseña nueva.
+String? validatePasswordConfirmation(String? confirmation, String password) {
+  if (confirmation == null || confirmation.isEmpty) {
+    return 'Repite la contraseña nueva';
+  }
+  if (confirmation != password) return 'Las contraseñas no coinciden';
+  return null;
+}
+
 /// Genera una contraseña temporal que cumple [validateNewPassword].
 ///
 /// El administrador se la entrega al operador, que la cambia desde
