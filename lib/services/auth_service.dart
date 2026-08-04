@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -19,15 +21,20 @@ class AuthService extends ChangeNotifier {
   /// mucho antes de que alguien termine de escribir sus credenciales.
   ///
   /// Omitirlo (los tests lo hacen) equivale a "Firebase ya está listo".
-  AuthService({Future<void>? ready}) : _ready = ready ?? Future<void>.value();
+  AuthService({Future<void>? ready}) : _ready = ready ?? Future<void>.value() {
+    _initAuthState();
+  }
 
   final Future<void> _ready;
 
   AppUser? _currentUser;
+  bool _loading = true;
+  StreamSubscription<User?>? _authStateSubscription;
 
   AppUser? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
+  bool get isLoading => _loading;
 
   /// Espera a que Firebase esté inicializado, traduciendo un fallo de
   /// arranque a un mensaje de UI en lugar de un error crudo.
@@ -40,6 +47,74 @@ class AuthService extends ChangeNotifier {
         'e intenta de nuevo.',
       );
     }
+  }
+
+  Future<void> _initAuthState() async {
+    try {
+      await _ensureReady();
+      final auth = FirebaseAuth.instance;
+
+      try {
+        await auth.setPersistence(Persistence.LOCAL);
+      } catch (_) {
+        // Ignorar si la plataforma no soporta esta persistencia o si ya
+        // está configurada. En la web/PWA esto garantiza sesión tras F5.
+      }
+
+      _authStateSubscription =
+          auth.idTokenChanges().listen(_handleAuthState, onError: (_) {
+        _loading = false;
+        notifyListeners();
+      });
+
+      final currentUser = auth.currentUser;
+      if (currentUser != null) {
+        await _handleAuthState(currentUser);
+      }
+    } catch (_) {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _handleAuthState(User? firebaseUser) async {
+    if (firebaseUser == null) {
+      _currentUser = null;
+      _loading = false;
+      notifyListeners();
+      return;
+    }
+
+    if (_currentUser?.id == firebaseUser.uid && !_loading) {
+      return;
+    }
+
+    try {
+      final email = firebaseUser.email?.trim().toLowerCase() ?? '';
+      final profile = await _loadProfile(
+        firebaseUser.uid,
+        email,
+        displayName: firebaseUser.displayName,
+      );
+
+      if (!profile.active) {
+        await FirebaseAuth.instance.signOut();
+        _currentUser = null;
+      } else {
+        _currentUser = profile;
+      }
+    } catch (_) {
+      _currentUser = null;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    super.dispose();
   }
 
   /// Inicia sesión. Lanza [AuthException] con un mensaje listo para UI.

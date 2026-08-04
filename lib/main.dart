@@ -65,11 +65,17 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
 
+    final home = auth.isLoading
+        ? const _AuthLoadingScreen()
+        : auth.isLoggedIn
+            ? const AppShell()
+            : const LoginScreen();
+
     final app = MaterialApp(
       title: 'AURA VITAE · PymeSync',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: auth.isLoggedIn ? const AppShell() : const LoginScreen(),
+      home: home,
     );
 
     if (!auth.isLoggedIn) return app;
@@ -79,6 +85,19 @@ class AuthGate extends StatelessWidget {
       key: ValueKey(auth.currentUser!.id),
       create: (_) => FirestoreInventoryRepository(),
       child: app,
+    );
+  }
+}
+
+class _AuthLoadingScreen extends StatelessWidget {
+  const _AuthLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
     );
   }
 }
