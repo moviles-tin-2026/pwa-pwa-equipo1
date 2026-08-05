@@ -50,6 +50,24 @@ La app ofrece gestión de inventario en tiempo real, punto de venta con transacc
 
 ---
 
+## 📴 Modo sin conexión
+
+La app es una PWA instalable y sigue funcionando con la red caída, pero **no todo**. Esto es exactamente lo que cubre:
+
+| Sin conexión | ¿Funciona? | Por qué |
+| --- | :---: | --- |
+| Abrir la app (ya instalada o visitada) | ✅ | El service worker cachea el *app shell* |
+| Mantener la sesión iniciada | ✅ | Firebase Auth guarda la sesión localmente |
+| Consultar inventario, ventas y movimientos ya vistos | ✅ | Caché local de Firestore (`persistenceEnabled`) |
+| Cobrar una venta en el POS | ❌ | Necesita transacción contra el servidor |
+| Registrar entradas o salidas de stock | ❌ | Necesita transacción contra el servidor |
+| Cancelar un folio | ❌ | Necesita transacción contra el servidor |
+| Iniciar sesión por primera vez en ese dispositivo | ❌ | Firebase Auth debe validar las credenciales |
+
+Las tres operaciones que no funcionan usan **transacciones de Firestore**, que no se resuelven sin conexión porque necesitan leer el stock del servidor para descontarlo de forma atómica. Es a propósito: encolarlas offline permitiría vender existencias que otro dispositivo ya vendió. Cuando se intenta, la app avisa "Sin conexión" y explica por qué, en vez de fallar en silencio.
+
+> La caché local guarda lo que ya se consultó en ese navegador. Un dispositivo que nunca abrió el módulo de Ventas no verá ventas al quedarse sin red.
+
 ## 🛠️ Stack técnico
 
 | Área              | Tecnología                          |

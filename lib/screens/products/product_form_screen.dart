@@ -76,6 +76,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     super.dispose();
   }
 
+  /// El SKU identifica al producto en el POS, así que no puede repetirse:
+  /// con dos productos bajo el mismo código, la búsqueda del cajero es
+  /// ambigua y puede cobrar el equivocado.
+  String? _validateSku(String? value) {
+    final sku = value?.trim() ?? '';
+    if (sku.isEmpty) return 'Ingresa el SKU o código';
+
+    final owner = context.read<InventoryRepository>().productBySku(
+          sku,
+          excludingId: widget.product?.id,
+        );
+    if (owner != null) return 'Ese SKU ya lo usa "${owner.name}"';
+    return null;
+  }
+
   String? _requiredNumber(String? value, {bool integer = false}) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Campo obligatorio';
@@ -189,9 +204,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     labelText: 'SKU / Código de barras',
                     prefixIcon: Icon(Icons.qr_code_2),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Ingresa el SKU o código'
-                      : null,
+                  validator: _validateSku,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

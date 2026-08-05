@@ -35,6 +35,41 @@ typedef SaleCancellation = ({String? error, List<SaleItem> notRestored});
 /// Las pantallas solo dependen de esta clase, por lo que el backend es
 /// transparente para la UI.
 abstract class InventoryRepository extends ChangeNotifier {
+  InventoryRepository() : _startedAt = DateTime.now();
+
+  /// Momento en que se abrió la sesión de datos. Fija el inicio de las
+  /// ventanas para que no se muevan mientras la app está abierta: si se
+  /// recalcularan a cada consulta, la UI y los datos podrían discrepar.
+  final DateTime _startedAt;
+
+  // ---------------- Ventana de datos sincronizada ----------------
+  //
+  // Ventas y movimientos se traen acotados POR FECHA, no por número de
+  // documentos. Antes eran `limit(300)` y `limit(200)`: al pasar esos
+  // volúmenes, el dashboard reportaba de menos sin avisar y Movimientos
+  // dejaba de ser la bitácora que promete la documentación. Con una
+  // ventana de fechas el recorte es explícito, se puede escribir en
+  // pantalla y las métricas del período son exactas.
+
+  /// Meses de ventas sincronizados. Cubre de sobra el gráfico de 6 meses
+  /// y el total del mes en curso.
+  static const int salesWindowMonths = 12;
+
+  /// Días de movimientos sincronizados. Cubre los filtros del módulo
+  /// (hoy, 7 y 30 días) con margen para rangos personalizados.
+  static const int movementsWindowDays = 90;
+
+  /// Primer día del mes con el que arranca la ventana de ventas.
+  DateTime get salesWindowStart => DateTime(
+        _startedAt.year,
+        _startedAt.month - (salesWindowMonths - 1),
+      );
+
+  /// Primer día de la ventana de movimientos.
+  DateTime get movementsWindowStart =>
+      DateTime(_startedAt.year, _startedAt.month, _startedAt.day)
+          .subtract(const Duration(days: movementsWindowDays - 1));
+
   @protected
   final List<Category> categoriesCache = [];
   @protected
@@ -69,6 +104,25 @@ abstract class InventoryRepository extends ChangeNotifier {
   Product? productById(String id) {
     for (final p in productsCache) {
       if (p.id == id) return p;
+    }
+    return null;
+  }
+
+  /// Producto que ya usa [sku], o `null` si está libre.
+  ///
+  /// Compara sin distinguir mayúsculas ni espacios sobrantes: para el
+  /// cajero que teclea o escanea un código, `AV-001` y `av-001 ` son el
+  /// mismo producto, así que permitir ambos volvería ambigua la búsqueda
+  /// del POS.
+  ///
+  /// [excludingId] deja fuera al producto que se está editando, para que
+  /// no choque consigo mismo.
+  Product? productBySku(String sku, {String? excludingId}) {
+    final normalized = sku.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final p in productsCache) {
+      if (p.id == excludingId) continue;
+      if (p.sku.trim().toLowerCase() == normalized) return p;
     }
     return null;
   }
@@ -207,6 +261,7 @@ abstract class InventoryRepository extends ChangeNotifier {
   /// registra un movimiento de entrada por cada línea para conservar la
   /// trazabilidad del historial.
   ///
+<<<<<<< HEAD
   /// Devuelve en `notRestored` las líneas que no se pudieron reponer
   /// (producto ya no existe en el catálogo) para que la UI lo informe en
   /// vez de dar por hecho que se restauró todo.
@@ -214,6 +269,12 @@ abstract class InventoryRepository extends ChangeNotifier {
     String saleId, {
     required String userName,
   });
+=======
+  /// Devuelve un mensaje de error o `null` si tuvo éxito: la cancelación
+  /// es una transacción y sin conexión no se puede resolver, así que la
+  /// UI necesita poder decirlo.
+  Future<String?> cancelSale(String saleId, {required String userName});
+>>>>>>> ba5ad00e695b52a7d354e0446ce95919e3f19609
 
   // El alta de usuarios NO vive aquí: crear solo el documento dejaba una
   // cuenta que no podía iniciar sesión, y con id aleatorio en vez del uid

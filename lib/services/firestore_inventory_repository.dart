@@ -41,10 +41,16 @@ class FirestoreInventoryRepository extends InventoryRepository {
           ..addAll(snap.docs.map((d) => Product.fromMap(d.id, d.data())));
         notifyListeners();
       }),
+      // Acotado por fecha, no por número de documentos: ver la ventana en
+      // `InventoryRepository`. Un `limit(n)` recortaba la bitácora en
+      // silencio y falseaba las métricas al crecer el negocio.
       _db
           .collection('movements')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: movementsWindowStart.millisecondsSinceEpoch,
+          )
           .orderBy('date', descending: true)
-          .limit(200)
           .snapshots()
           .listen((snap) {
         movementsCache
@@ -54,8 +60,11 @@ class FirestoreInventoryRepository extends InventoryRepository {
       }),
       _db
           .collection('sales')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: salesWindowStart.millisecondsSinceEpoch,
+          )
           .orderBy('date', descending: true)
-          .limit(300)
           .snapshots()
           .listen((snap) {
         salesCache
@@ -217,8 +226,32 @@ class FirestoreInventoryRepository extends InventoryRepository {
         return null;
       });
     } catch (e) {
-      return 'Error al registrar el movimiento: $e';
+      return _writeErrorMessage(e, action: 'registrar el movimiento');
     }
+  }
+
+  /// Mensaje para un fallo de escritura.
+  ///
+  /// Distingue la falta de conexión porque es el caso más frecuente y el
+  /// más confuso: la app abre sin red gracias a la caché local, así que
+  /// parece que todo funciona hasta que se intenta guardar. Las
+  /// transacciones no se resuelven sin conexión —necesitan leer el stock
+  /// del servidor para descontarlo de forma atómica—, y decir "sin
+  /// conexión" evita que se lea como un error del sistema.
+  static String _writeErrorMessage(Object error, {required String action}) {
+    if (error is FirebaseException) {
+      return switch (error.code) {
+        'unavailable' || 'deadline-exceeded' =>
+          'Sin conexión: no se puede $action porque el inventario se '
+              'actualiza contra el servidor. Reconecta e intenta de nuevo.',
+        'permission-denied' =>
+          'Tu cuenta no tiene permiso para $action.',
+        'unauthenticated' =>
+          'Tu sesión expiró. Vuelve a iniciar sesión e intenta de nuevo.',
+        _ => 'No se pudo $action (${error.code}).',
+      };
+    }
+    return 'No se pudo $action: $error';
   }
 
   // ---------------- Ventas (POS) ----------------
@@ -304,11 +337,15 @@ class FirestoreInventoryRepository extends InventoryRepository {
     } on _TransactionError catch (e) {
       return (sale: null, error: e.message);
     } catch (e) {
-      return (sale: null, error: 'Error al procesar la venta: $e');
+      return (
+        sale: null,
+        error: _writeErrorMessage(e, action: 'cobrar la venta'),
+      );
     }
   }
 
   @override
+<<<<<<< HEAD
   Future<SaleCancellation> cancelSale(
     String saleId, {
     required String userName,
@@ -326,6 +363,24 @@ class FirestoreInventoryRepository extends InventoryRepository {
         if (sale.cancelled) {
           throw _TransactionError('El folio ${sale.folio} ya estaba cancelado');
         }
+=======
+  Future<String?> cancelSale(String saleId, {required String userName}) async {
+    try {
+      await _cancelSaleTransaction(saleId, userName);
+      return null;
+    } catch (e) {
+      return _writeErrorMessage(e, action: 'cancelar la venta');
+    }
+  }
+
+  Future<void> _cancelSaleTransaction(String saleId, String userName) async {
+    await _db.runTransaction<void>((tx) async {
+      final saleRef = _db.collection('sales').doc(saleId);
+      final saleSnap = await tx.get(saleRef);
+      if (!saleSnap.exists) return;
+      final sale = Sale.fromMap(saleSnap.id, saleSnap.data()!);
+      if (sale.cancelled) return;
+>>>>>>> ba5ad00e695b52a7d354e0446ce95919e3f19609
 
         // Firestore exige todas las lecturas antes de cualquier escritura.
         final restores = <({
