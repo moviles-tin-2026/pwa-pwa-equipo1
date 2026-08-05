@@ -633,9 +633,12 @@ class EmptyState extends StatelessWidget {
 }
 
 /// SnackBars consistentes para éxito / error.
-void showSuccessSnackBar(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
+///
+/// `successSnackBar`/`errorSnackBar` construyen el widget para cuando hay
+/// que capturar el `ScaffoldMessenger` antes de un `await` que puede
+/// desmontar quien lo lanzó (p. ej. una fila que desaparece de una lista
+/// filtrada al completarse la operación).
+SnackBar successSnackBar(String message) => SnackBar(
       backgroundColor: AppTheme.success,
       content: Row(
         children: [
@@ -644,13 +647,9 @@ void showSuccessSnackBar(BuildContext context, String message) {
           Expanded(child: Text(message)),
         ],
       ),
-    ),
-  );
-}
+    );
 
-void showErrorSnackBar(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
+SnackBar errorSnackBar(String message) => SnackBar(
       backgroundColor: AppTheme.danger,
       content: Row(
         children: [
@@ -659,9 +658,13 @@ void showErrorSnackBar(BuildContext context, String message) {
           Expanded(child: Text(message)),
         ],
       ),
-    ),
-  );
-}
+    );
+
+void showSuccessSnackBar(BuildContext context, String message) =>
+    ScaffoldMessenger.of(context).showSnackBar(successSnackBar(message));
+
+void showErrorSnackBar(BuildContext context, String message) =>
+    ScaffoldMessenger.of(context).showSnackBar(errorSnackBar(message));
 
 /// Avisa al usuario qué pasó con el ticket. Cuando la impresión sale bien
 /// no se dice nada: el diálogo del navegador ya es la confirmación.
