@@ -11,10 +11,9 @@ import '../models/models.dart';
 /// Servicio de autenticación y sesión.
 ///
 /// 1. Autentica con Firebase Authentication (Email/Password).
-/// 2. Lee el rol desde Cloud Firestore, colección `users`:
-///    primero busca el documento `users/{uid}`; si no existe, busca por
-///    campo `email`. Si tampoco existe, crea el documento con rol
-///    Operador (el Admin puede cambiarlo después en Gestión de Usuarios).
+/// 2. Lee el rol desde Cloud Firestore en `users/{uid}`. Sin documento
+///    de perfil no hay acceso: el alta la hace el Admin con
+///    [createUserAccount].
 /// 3. Redirige según el rol detectado (lo hace el AuthGate de main.dart).
 class AuthService extends ChangeNotifier {
   /// [ready] es el `Future` de `Firebase.initializeApp`, que `main` arranca
@@ -93,11 +92,7 @@ class AuthService extends ChangeNotifier {
 
     try {
       final email = firebaseUser.email?.trim().toLowerCase() ?? '';
-      final profile = await _loadProfile(
-        firebaseUser.uid,
-        email,
-        displayName: firebaseUser.displayName,
-      );
+      final profile = await _loadProfile(firebaseUser.uid);
 
       if (!profile.active) {
         await FirebaseAuth.instance.signOut();
@@ -106,6 +101,9 @@ class AuthService extends ChangeNotifier {
         _currentUser = await _syncAccountEmail(profile, email);
       }
     } catch (_) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
       _currentUser = null;
     } finally {
       _loading = false;
@@ -151,8 +149,7 @@ class AuthService extends ChangeNotifier {
       final credential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: normalized, password: password);
       final user = credential.user!;
-      final profile = await _loadProfile(user.uid, normalized,
-          displayName: user.displayName);
+      final profile = await _loadProfile(user.uid);
 
       if (!profile.active) {
         await FirebaseAuth.instance.signOut();
@@ -178,42 +175,22 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Obtiene (o crea) el perfil con rol desde la colección `users`.
-  Future<AppUser> _loadProfile(String uid, String email,
-      {String? displayName}) async {
-    final users = FirebaseFirestore.instance.collection('users');
-
+  /// Obtiene el perfil en `users/{uid}`. Sin documento o sin permiso de
+  /// lectura no hay sesión: evita inventar roles ni saltarse `active`.
+  Future<AppUser> _loadProfile(String uid) async {
     try {
-      final byUid = await users.doc(uid).get();
-      if (byUid.exists) {
-        return AppUser.fromMap(byUid.id, byUid.data()!);
+      final snap =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!snap.exists) {
+        throw const AuthException(
+          'No tienes un perfil en el sistema. Contacta al administrador.',
+        );
       }
-
-      final byEmail =
-          await users.where('email', isEqualTo: email).limit(1).get();
-      if (byEmail.docs.isNotEmpty) {
-        final doc = byEmail.docs.first;
-        return AppUser.fromMap(doc.id, doc.data());
-      }
-
-      // Primer inicio de sesión sin perfil: crear como Operador.
-      final profile = AppUser(
-        id: uid,
-        name: displayName ?? email.split('@').first,
-        email: email,
-        role: UserRole.operator,
-      );
-      await users.doc(uid).set(profile.toMap());
-      return profile;
-    } catch (_) {
-      // Firestore no disponible (p. ej. sin conexión): degradar con la
-      // heurística por correo para no bloquear el acceso.
-      return AppUser(
-        id: uid,
-        name: displayName ?? email.split('@').first,
-        email: email,
-        role: email.startsWith('admin') ? UserRole.admin : UserRole.operator,
-      );
+      return AppUser.fromMap(snap.id, snap.data()!);
+    } on AuthException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw AuthException(_firestoreMessage(e, action: 'cargar tu perfil'));
     }
   }
 
