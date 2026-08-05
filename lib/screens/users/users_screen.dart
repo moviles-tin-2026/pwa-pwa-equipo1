@@ -50,18 +50,12 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   void _showUserDetail(BuildContext context, AppUser user) {
-    final history = List.generate(6, (i) {
-      final when = DateTime.now().subtract(Duration(hours: i * 5 + 2));
-      final actions = [
-        'Inició sesión',
-        'Editó perfil',
-        'Cambio de rol',
-        'Inactivado',
-        'Reactivado',
-        'Registrado en el sistema',
-      ];
-      return (time: when, action: actions[i % actions.length]);
-    });
+    final repo = context.read<InventoryRepository>();
+    final history = userActivityHistory(
+      sales: repo.sales,
+      movements: repo.movements,
+      userName: user.name,
+    );
 
     showDialog<void>(
       context: context,
@@ -137,30 +131,54 @@ class _UsersScreenState extends State<UsersScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 220),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: history.length,
-                  separatorBuilder: (_, _) => const Divider(height: 8),
-                  itemBuilder: (context, i) {
-                    final entry = history[i];
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(entry.action),
-                        Text(
-                          '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
+              if (history.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Sin ventas ni movimientos registrados a nombre de '
+                    'este usuario.',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: history.length,
+                    separatorBuilder: (_, _) => const Divider(height: 8),
+                    itemBuilder: (context, i) {
+                      final entry = history[i];
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.label,
+                              style: TextStyle(
+                                color: entry.isNegative
+                                    ? AppTheme.danger
+                                    : null,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          const SizedBox(width: 8),
+                          Text(
+                            '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
             ],
           ),
         ),

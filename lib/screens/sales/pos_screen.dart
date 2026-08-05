@@ -169,7 +169,7 @@ class _PosScreenState extends State<PosScreen> {
     final isMobile = context.isMobile;
 
     final query = _search.trim().toLowerCase();
-    final products = repo.products.where((p) {
+    final products = repo.activeProducts.where((p) {
       if (_categoryId != null && p.categoryId != _categoryId) return false;
       if (query.isEmpty) return true;
       return p.name.toLowerCase().contains(query) ||

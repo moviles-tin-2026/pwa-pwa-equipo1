@@ -153,8 +153,38 @@ class FirestoreInventoryRepository extends InventoryRepository {
       _db.collection('products').doc(updated.id).update(updated.toMap());
 
   @override
-  Future<void> deleteProduct(String id) =>
-      _db.collection('products').doc(id).delete();
+  Future<ProductDeletionOutcome> deleteProduct(String id) async {
+    try {
+      final ref = _db.collection('products').doc(id);
+      final snap = await ref.get();
+      if (!snap.exists) return ProductDeletionOutcome.notFound;
+
+      // Un producto citado por un movimiento (venta o ajuste manual) no
+      // puede desaparecer: si se borrara, cancelar ese folio dejaría una
+      // línea sin stock que devolver y el histórico apuntaría a un id
+      // inexistente. checkoutSale y registerMovement escriben un movimiento
+      // por cada línea, así que consultarlos basta para saber si tiene
+      // historial.
+      final history = await _db
+          .collection('movements')
+          .where('productId', isEqualTo: id)
+          .limit(1)
+          .get();
+      if (history.docs.isNotEmpty) {
+        await ref.update({'active': false});
+        return ProductDeletionOutcome.deactivated;
+      }
+
+      await ref.delete();
+      return ProductDeletionOutcome.deleted;
+    } catch (_) {
+      return ProductDeletionOutcome.failed;
+    }
+  }
+
+  @override
+  Future<void> setProductActive(String id, bool active) =>
+      _db.collection('products').doc(id).update({'active': active});
 
   // ---------------- Movimientos ----------------
 
@@ -246,11 +276,16 @@ class FirestoreInventoryRepository extends InventoryRepository {
           final ref = _db.collection('products').doc(item.productId);
           final snap = await tx.get(ref);
           if (!snap.exists) {
-            throw _CheckoutError('Producto no encontrado: ${item.productName}');
+            throw _TransactionError('Producto no encontrado: ${item.productName}');
           }
           final product = Product.fromMap(snap.id, snap.data()!);
+          if (!product.active) {
+            throw _TransactionError(
+              '"${product.name}" está descontinuado y ya no puede venderse',
+            );
+          }
           if (item.quantity > product.stock) {
-            throw _CheckoutError(
+            throw _TransactionError(
               'Stock insuficiente de "${product.name}" (disponible: ${product.stock})',
             );
           }
@@ -299,7 +334,7 @@ class FirestoreInventoryRepository extends InventoryRepository {
         return sale;
       });
       return (sale: sale, error: null);
-    } on _CheckoutError catch (e) {
+    } on _TransactionError catch (e) {
       return (sale: null, error: e.message);
     } catch (e) {
       return (
@@ -310,6 +345,25 @@ class FirestoreInventoryRepository extends InventoryRepository {
   }
 
   @override
+<<<<<<< HEAD
+  Future<SaleCancellation> cancelSale(
+    String saleId, {
+    required String userName,
+  }) async {
+    try {
+      final notRestored = await _db.runTransaction<List<SaleItem>>((
+        tx,
+      ) async {
+        final saleRef = _db.collection('sales').doc(saleId);
+        final saleSnap = await tx.get(saleRef);
+        if (!saleSnap.exists) {
+          throw _TransactionError('La venta ya no existe');
+        }
+        final sale = Sale.fromMap(saleSnap.id, saleSnap.data()!);
+        if (sale.cancelled) {
+          throw _TransactionError('El folio ${sale.folio} ya estaba cancelado');
+        }
+=======
   Future<String?> cancelSale(String saleId, {required String userName}) async {
     try {
       await _cancelSaleTransaction(saleId, userName);
@@ -326,17 +380,23 @@ class FirestoreInventoryRepository extends InventoryRepository {
       if (!saleSnap.exists) return;
       final sale = Sale.fromMap(saleSnap.id, saleSnap.data()!);
       if (sale.cancelled) return;
+>>>>>>> ba5ad00e695b52a7d354e0446ce95919e3f19609
 
-      final restores = <({
-        DocumentReference<Map<String, dynamic>> ref,
-        Product product,
-        SaleItem item,
-        int newStock,
-      })>[];
-      for (final item in sale.items) {
-        final ref = _db.collection('products').doc(item.productId);
-        final snap = await tx.get(ref);
-        if (snap.exists) {
+        // Firestore exige todas las lecturas antes de cualquier escritura.
+        final restores = <({
+          DocumentReference<Map<String, dynamic>> ref,
+          Product product,
+          SaleItem item,
+          int newStock,
+        })>[];
+        final skipped = <SaleItem>[];
+        for (final item in sale.items) {
+          final ref = _db.collection('products').doc(item.productId);
+          final snap = await tx.get(ref);
+          if (!snap.exists) {
+            skipped.add(item);
+            continue;
+          }
           final product = Product.fromMap(snap.id, snap.data()!);
           restores.add((
             ref: ref,
@@ -345,31 +405,40 @@ class FirestoreInventoryRepository extends InventoryRepository {
             newStock: product.stock + item.quantity,
           ));
         }
-      }
 
-      // Devolver el stock y dejar la entrada correspondiente en la bitácora:
-      // sin este movimiento la trazabilidad quedaría rota (el inventario
-      // sube sin que ningún registro explique por qué).
-      final now = DateTime.now();
-      for (final restore in restores) {
-        tx.update(restore.ref, {'stock': restore.newStock});
-        final mRef = _db.collection('movements').doc();
-        tx.set(
-          mRef,
-          StockMovement(
-            id: mRef.id,
-            productId: restore.product.id,
-            productName: restore.product.name,
-            type: MovementType.entry,
-            quantity: restore.item.quantity,
-            reason: 'Devolución por cancelación: ${sale.folio}',
-            userName: userName,
-            date: now,
-          ).toMap(),
-        );
-      }
-      tx.update(saleRef, {'cancelled': true});
-    });
+        // Devolver el stock y dejar la entrada correspondiente en la
+        // bitácora: sin este movimiento la trazabilidad quedaría rota (el
+        // inventario sube sin que ningún registro explique por qué).
+        final now = DateTime.now();
+        for (final restore in restores) {
+          tx.update(restore.ref, {'stock': restore.newStock});
+          final mRef = _db.collection('movements').doc();
+          tx.set(
+            mRef,
+            StockMovement(
+              id: mRef.id,
+              productId: restore.product.id,
+              productName: restore.product.name,
+              type: MovementType.entry,
+              quantity: restore.item.quantity,
+              reason: 'Devolución por cancelación: ${sale.folio}',
+              userName: userName,
+              date: now,
+            ).toMap(),
+          );
+        }
+        tx.update(saleRef, {'cancelled': true});
+        return skipped;
+      });
+      return (error: null, notRestored: notRestored);
+    } on _TransactionError catch (e) {
+      return (error: e.message, notRestored: const <SaleItem>[]);
+    } catch (e) {
+      return (
+        error: 'Error al cancelar la venta: $e',
+        notRestored: const <SaleItem>[],
+      );
+    }
   }
 
   // ---------------- Usuarios ----------------
@@ -383,7 +452,7 @@ class FirestoreInventoryRepository extends InventoryRepository {
       _db.collection('users').doc(id).delete();
 }
 
-class _CheckoutError implements Exception {
-  const _CheckoutError(this.message);
+class _TransactionError implements Exception {
+  const _TransactionError(this.message);
   final String message;
 }

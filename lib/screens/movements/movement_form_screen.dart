@@ -123,7 +123,7 @@ class _MovementFormScreenState extends State<MovementFormScreen> {
                 ),
                 const SizedBox(height: 20),
                 SearchableProductSelect(
-                  products: repo.products,
+                  products: repo.activeProducts,
                   initialValue: _productId,
                   onChanged: (value) => setState(() => _productId = value),
                   validator: (v) =>

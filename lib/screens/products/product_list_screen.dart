@@ -32,6 +32,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
   String? _categoryId;
   StockStatus? _stockStatus;
 
+  /// Los descontinuados (baja lógica) se ocultan salvo que el admin los
+  /// pida expresamente con el filtro.
+  bool _showInactive = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +52,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   List<Product> _filter(InventoryRepository repo) {
     final query = _search.trim().toLowerCase();
     return repo.products.where((p) {
+      if (!p.active && !_showInactive) return false;
       if (_categoryId != null && p.categoryId != _categoryId) return false;
       if (_stockStatus != null && p.stockStatus != _stockStatus) return false;
       if (query.isEmpty) return true;
@@ -170,6 +175,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 selected ? StockStatus.out : null,
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          avatar: Icon(
+                            Icons.visibility_off_outlined,
+                            size: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                          label: const Text('Descontinuados'),
+                          selected: _showInactive,
+                          onSelected: (selected) =>
+                              setState(() => _showInactive = selected),
+                        ),
                       ],
                     ),
                   ),
@@ -235,11 +252,23 @@ class _ProductCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (!product.active) ...[
+                          const SizedBox(width: 6),
+                          const _InactiveBadge(),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -352,6 +381,10 @@ class _ProductTable extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (!product.active) ...[
+                              const SizedBox(width: 6),
+                              const _InactiveBadge(),
+                            ],
                           ],
                         )),
                         DataCell(Text(product.sku)),
@@ -382,6 +415,30 @@ class _ProductTable extends StatelessWidget {
   }
 }
 
+/// Distintivo para productos dados de baja lógica.
+class _InactiveBadge extends StatelessWidget {
+  const _InactiveBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        'Descontinuado',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade700,
+        ),
+      ),
+    );
+  }
+}
+
 /// Menú contextual de acciones de Admin sobre un producto.
 class _AdminProductMenu extends StatelessWidget {
   const _AdminProductMenu({required this.product});
@@ -391,6 +448,10 @@ class _AdminProductMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = context.read<InventoryRepository>();
+    // Con "Descontinuados" apagado, dar de baja saca a este producto de la
+    // lista filtrada y el widget se desmonta: el messenger se captura antes
+    // de cualquier await para no perder el aviso.
+    final messenger = ScaffoldMessenger.of(context);
 
     return PopupMenuButton<String>(
       tooltip: 'Acciones',
@@ -403,12 +464,22 @@ class _AdminProductMenu extends StatelessWidget {
                 builder: (_) => ProductFormScreen(product: product),
               ),
             );
+          case 'reactivate':
+            repo.setProductActive(product.id, true);
+            messenger.showSnackBar(
+              successSnackBar('"${product.name}" volvió al catálogo'),
+            );
           case 'delete':
             showDialog<void>(
               context: context,
               builder: (dialogContext) => AlertDialog(
                 title: const Text('Eliminar producto'),
-                content: Text('¿Eliminar "${product.name}" del catálogo?'),
+                content: Text(
+                  '¿Eliminar "${product.name}" del catálogo?\n\n'
+                  'Si tiene ventas o movimientos registrados no se borrará: '
+                  'se marcará como descontinuado para conservar el '
+                  'historial y poder devolverle stock al cancelar folios.',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(dialogContext),
@@ -418,10 +489,24 @@ class _AdminProductMenu extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: AppTheme.danger,
                     ),
-                    onPressed: () {
-                      repo.deleteProduct(product.id);
+                    onPressed: () async {
                       Navigator.pop(dialogContext);
-                      showSuccessSnackBar(context, 'Producto eliminado');
+                      final outcome = await repo.deleteProduct(product.id);
+                      messenger.showSnackBar(switch (outcome) {
+                        ProductDeletionOutcome.deleted => successSnackBar(
+                          'Producto eliminado',
+                        ),
+                        ProductDeletionOutcome.deactivated => successSnackBar(
+                          '"${product.name}" tiene historial de ventas o '
+                          'movimientos: se marcó como descontinuado',
+                        ),
+                        ProductDeletionOutcome.notFound => errorSnackBar(
+                          'El producto ya no existe',
+                        ),
+                        ProductDeletionOutcome.failed => errorSnackBar(
+                          'No se pudo eliminar el producto',
+                        ),
+                      });
                     },
                     child: const Text('Eliminar'),
                   ),
@@ -430,24 +515,36 @@ class _AdminProductMenu extends StatelessWidget {
             );
         }
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem(
+      itemBuilder: (context) => [
+        const PopupMenuItem(
           value: 'edit',
           child: ListTile(
             leading: Icon(Icons.edit_outlined),
             title: Text('Editar'),
           ),
         ),
-        PopupMenuItem(
-          value: 'delete',
-          child: ListTile(
-            leading: Icon(Icons.delete_outline, color: AppTheme.danger),
-            title: Text(
-              'Eliminar',
-              style: TextStyle(color: AppTheme.danger),
+        if (product.active)
+          const PopupMenuItem(
+            value: 'delete',
+            child: ListTile(
+              leading: Icon(Icons.delete_outline, color: AppTheme.danger),
+              title: Text(
+                'Eliminar',
+                style: TextStyle(color: AppTheme.danger),
+              ),
+            ),
+          )
+        else
+          const PopupMenuItem(
+            value: 'reactivate',
+            child: ListTile(
+              leading: Icon(Icons.restore, color: AppTheme.success),
+              title: Text(
+                'Reactivar',
+                style: TextStyle(color: AppTheme.success),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

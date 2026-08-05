@@ -1,6 +1,55 @@
 import 'dart:math';
 
+import '../../models/models.dart';
+
 enum SortOption { nameAsc, nameDesc, role, email }
+
+/// Una entrada real del historial de actividad de un usuario.
+typedef UserActivityEntry = ({DateTime time, String label, bool isNegative});
+
+/// Construye el historial de actividad de [userName] a partir de las
+/// ventas y movimientos que ya existen en Firestore — nunca datos
+/// inventados.
+///
+/// Los movimientos que ya representan una línea de venta (`reason` empieza
+/// con "Venta: ") se omiten: esa venta ya aparece una sola vez como evento
+/// propio, así que no hace falta repetirla una vez por cada producto.
+List<UserActivityEntry> userActivityHistory({
+  required List<Sale> sales,
+  required List<StockMovement> movements,
+  required String userName,
+  int limit = 15,
+}) {
+  final entries = <UserActivityEntry>[];
+
+  for (final sale in sales.where((s) => s.userName == userName)) {
+    entries.add((
+      time: sale.date,
+      label: sale.cancelled
+          ? 'Venta ${sale.folio} cancelada'
+          : 'Venta ${sale.folio} · ${sale.itemCount} artículo(s)',
+      isNegative: sale.cancelled,
+    ));
+  }
+
+  for (final movement in movements.where((m) => m.userName == userName)) {
+    if (movement.reason.startsWith('Venta: ')) continue;
+    final isRestore = movement.reason.startsWith(
+      'Devolución por cancelación:',
+    );
+    entries.add((
+      time: movement.date,
+      label: isRestore
+          ? '${movement.reason} · ${movement.quantity}× ${movement.productName}'
+          : '${movement.type.label} de stock: ${movement.productName} '
+              '(${movement.quantity}) — ${movement.reason}',
+      isNegative: movement.type == MovementType.exit,
+    ));
+  }
+
+  entries.sort((a, b) => b.time.compareTo(a.time));
+  return entries.take(limit).toList();
+}
 
 // ---- Contraseña de las altas de usuario ----
 //
