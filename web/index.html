@@ -32,27 +32,19 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <!--
-    Google Fonts: Montserrat (brand) + Inter (body) del design system.
+    Aquí NO va un enlace a Google Fonts.
 
-    Se piden solo los pesos que el código usa de verdad: Montserrat en
-    600/700/800 y el default Inter en 400/500/600/700 (auditado sobre
-    `app_theme.dart` y las pantallas). Antes se pedía Montserrat 400/500,
-    que nadie usa, y faltaba Inter 700, que sí se usa mucho — el navegador
-    lo estaba sintetizando en falso negrita.
+    Montserrat e Inter se empaquetan como assets (ver `pubspec.yaml`).
+    Enlazarlas desde aquí no funcionaba: el renderer pinta el texto sobre
+    un canvas, así que ninguna familia del design system la usa un
+    elemento del DOM, y el navegador solo descarga una webfont cuando el
+    DOM la necesita. La hoja de estilos se bajaba y los archivos de
+    fuente nunca — el motor tiraba de Roboto para todo.
 
-    `media="print"` + `onload` hace que la hoja no bloquee el render: el
-    navegador la baja con prioridad baja y la aplica al terminar. Con
-    `display=swap` el texto se pinta desde el primer frame con la fuente
-    del sistema y cambia al llegar la real.
+    Si vuelve a hacer falta una fuente, va empaquetada, no enlazada. Eso
+    además la mete en el caché del service worker, que es lo que la hace
+    funcionar sin conexión.
   -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.media='all'"
-        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
-  <noscript>
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
-  </noscript>
 
   <title>AURA VITAE · PymeSync Skincare CRM</title>
   <link rel="manifest" href="manifest.json">

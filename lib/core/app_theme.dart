@@ -85,8 +85,15 @@ class AppTheme {
       scaffoldBackgroundColor: almond,
 
       // ── Tipografía — Montserrat (brand) + Inter (body) ─────────
-      // Flutter web carga las fuentes declaradas en pubspec.yaml;
-      // usamos los nombres exactos de Google Fonts.
+      // Los nombres tienen que coincidir con los `family` declarados en
+      // `pubspec.yaml`: el motor solo conoce las fuentes empaquetadas, y
+      // cualquier familia que no esté ahí cae en silencio al Roboto por
+      // defecto sin avisar de nada.
+      //
+      // Solo hay 600, 700 y 800 de Montserrat y 400, 600 y 700 de Inter.
+      // Pedir otro peso no falla: el motor lo sintetiza o redondea al más
+      // cercano, así que si el diseño necesita uno nuevo hay que añadir
+      // el archivo, no solo cambiar el `fontWeight`.
       fontFamily: 'Inter',
       textTheme: const TextTheme(
         // displayLarge / headlineLarge → títulos de página (Montserrat 800)
