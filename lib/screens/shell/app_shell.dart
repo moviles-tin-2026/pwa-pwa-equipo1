@@ -683,59 +683,20 @@ class _GlassSidebar extends StatelessWidget {
                 // ── Logo ──
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Row(
-                    mainAxisAlignment: showLabels
-                        ? MainAxisAlignment.start
-                        : MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: AppTheme.merlot,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                      if (showLabels) ...[
-                        const SizedBox(width: 10),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'AURA VITAE',
-                                maxLines: 1,
-                                overflow: TextOverflow.clip,
-                                softWrap: false,
-                                style: TextStyle(
-                                  fontFamily: 'Montserrat',
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                  letterSpacing: 0.12,
-                                  color: AppTheme.cocoa,
-                                ),
-                              ),
-                              Text(
-                                'Skincare CRM',
-                                maxLines: 1,
-                                overflow: TextOverflow.clip,
-                                softWrap: false,
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 9,
-                                  color: AppTheme.mauve,
-                                ),
-                              ),
-                            ],
+                  child: showLabels
+                      ? const Align(
+                          alignment: Alignment.centerLeft,
+                          child: BrandLogo(
+                            height: 88,
+                            asset: kNavbarLogoAsset,
+                          ),
+                        )
+                      : const Center(
+                          child: BrandLogo(
+                            iconOnly: true,
+                            asset: kNavbarLogoAsset,
                           ),
                         ),
-                      ],
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 18),
                 // ── Navegación ──

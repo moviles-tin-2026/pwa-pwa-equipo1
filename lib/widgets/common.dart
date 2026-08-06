@@ -83,6 +83,54 @@ class GlassCard extends StatelessWidget {
   }
 }
 
+/// Ruta del logo de AURA VITAE (login).
+const String kBrandLogoAsset = 'res/images/aura-vitae-logo.png';
+
+/// Logo del navbar (sidebar).
+const String kNavbarLogoAsset = 'res/images/aura-vitae-logo-navbar.png';
+
+/// Logo de marca para login y sidebar.
+class BrandLogo extends StatelessWidget {
+  const BrandLogo({
+    super.key,
+    this.height = 140,
+    this.iconOnly = false,
+    this.asset = kBrandLogoAsset,
+  });
+
+  final double height;
+  final bool iconOnly;
+  final String asset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (iconOnly) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Align(
+            alignment: Alignment.topCenter,
+            heightFactor: 0.38,
+            child: Image.asset(
+              asset,
+              width: 44,
+              fit: BoxFit.fitWidth,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Image.asset(
+      asset,
+      height: height,
+      fit: BoxFit.contain,
+    );
+  }
+}
+
 /// Fondo decorativo del shell: gradiente cálido con manchas de color
 /// difusas (peony/mauve/merlot) que hacen visible el efecto de vidrio
 /// de las [GlassCard] superpuestas.

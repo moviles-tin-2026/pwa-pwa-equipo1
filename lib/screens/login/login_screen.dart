@@ -173,7 +173,7 @@ class _CompactLayout extends StatelessWidget {
   }
 }
 
-/// Marca mínima sobre la fotografía: insignia de vidrio + wordmark.
+/// Marca sobre la fotografía: logo oficial + descripción en escritorio.
 class _BrandMark extends StatelessWidget {
   const _BrandMark({this.compact = false});
 
@@ -187,44 +187,9 @@ class _BrandMark extends StatelessWidget {
           : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: compact ? 48 : 56,
-          height: compact ? 48 : 56,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-          ),
-          child: Icon(
-            Icons.spa_outlined,
-            size: compact ? 22 : 26,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'AURA VITAE',
-          textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: TextStyle(
-            fontFamily: 'Montserrat',
-            color: Colors.white,
-            fontSize: compact ? 22 : 30,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.16,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'PymeSync · Skincare Management',
-          textAlign: compact ? TextAlign.center : TextAlign.start,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            color: Colors.white.withValues(alpha: 0.82),
-            fontSize: compact ? 12 : 14,
-          ),
-        ),
+        BrandLogo(height: compact ? 130 : 160),
         if (!compact) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           SizedBox(
             width: 320,
             child: Text(

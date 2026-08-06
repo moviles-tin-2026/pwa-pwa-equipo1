@@ -77,6 +77,8 @@ flutter:
   # Cualquier asset nuevo va aquí abajo, nunca en `assets/`.
   assets:
     - res/images/AuraVitae-Login-backgroundImg.webp
+    - res/images/aura-vitae-logo.png
+    - res/images/aura-vitae-logo-navbar.png
     # Fotos del catálogo. Se sirven como archivos sueltos y se descargan solo
     # cuando una pantalla las pide, así que no entran en el arranque de la app
     # ni afectan el tiempo de carga inicial.
