@@ -87,8 +87,16 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           sku,
           excludingId: widget.product?.id,
         );
-    if (owner != null) return 'Ese SKU ya lo usa "${owner.name}"';
-    return null;
+    if (owner == null) return null;
+    // Los descontinuados no salen en la lista salvo con el filtro puesto:
+    // sin decirlo, el mensaje señalaría un producto que no se ve por
+    // ningún lado. Conservan su SKU porque siguen en el catálogo para
+    // devolverles stock al cancelar folios viejos.
+    if (!owner.active) {
+      return 'Ese SKU es de "${owner.name}", descontinuado. Reactívalo o '
+          'usa otro código.';
+    }
+    return 'Ese SKU ya lo usa "${owner.name}"';
   }
 
   String? _requiredNumber(String? value, {bool integer = false}) {

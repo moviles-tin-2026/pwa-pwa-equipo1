@@ -1,10 +1,10 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
-import '../../core/responsive.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/common.dart';
 
@@ -22,7 +22,12 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.sizeOf(context).width >= Breakpoints.tablet;
+    // El layout ancho NO se elige por el breakpoint de tablet (700) sino
+    // por el ancho que de verdad necesita. Con 700-899 px —un iPad en
+    // vertical— la tarjeta del formulario se montaba encima del panel de
+    // marca: ambos tienen ancho propio y viven en un `Stack`, donde
+    // solaparse no produce ningún desborde visible que avise del problema.
+    final isWide = MediaQuery.sizeOf(context).width >= _WideLayout.minWidth;
 
     return Scaffold(
       body: Stack(
@@ -82,31 +87,53 @@ class LoginScreen extends StatelessWidget {
   }
 }
 
-/// Escritorio/tablet: panel de vidrio con la marca saliendo del borde
-/// izquierdo (sobre el bodegón), tarjeta flotando a la derecha sobre el
-/// muro despejado de la fotografía.
+/// Escritorio: panel de vidrio con la marca saliendo del borde izquierdo
+/// (sobre el bodegón), tarjeta flotando a la derecha sobre el muro
+/// despejado de la fotografía.
 class _WideLayout extends StatelessWidget {
   const _WideLayout();
 
+  /// Ancho mínimo para que las dos piezas convivan con aire entre ellas:
+  /// 400 del panel de marca + 420 de la tarjeta + 56 de margen derecho.
+  static const double minWidth = 900;
+
+  static const double _maxBrandWidth = 400;
+  static const double _maxCardWidth = 420;
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: _BrandGlassPanel(),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 56),
-            child: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(child: _LoginForm()),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        // Los tres anchos salen del espacio real disponible en vez de ser
+        // constantes sumadas a mano: así el panel y la tarjeta no pueden
+        // solaparse aunque este layout acabe usándose más estrecho.
+        final cardWidth = math.min(_maxCardWidth, width * 0.42);
+        final rightMargin = math.min(56.0, width * 0.06);
+        final brandWidth = math.min(
+          _maxBrandWidth,
+          width - cardWidth - rightMargin - 48,
+        );
+
+        return Stack(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _BrandGlassPanel(maxWidth: brandWidth),
             ),
-          ),
-        ),
-      ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.only(right: rightMargin),
+                child: SizedBox(
+                  width: cardWidth,
+                  child: const SingleChildScrollView(child: _LoginForm()),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -114,7 +141,10 @@ class _WideLayout extends StatelessWidget {
 /// Placa de vidrio que ancla el texto de marca al borde izquierdo de la
 /// pantalla — sin bordes redondeados en ese lado, como si emergiera de él.
 class _BrandGlassPanel extends StatelessWidget {
-  const _BrandGlassPanel();
+  const _BrandGlassPanel({required this.maxWidth});
+
+  /// Lo que quede libre a la izquierda de la tarjeta del formulario.
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +153,7 @@ class _BrandGlassPanel extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           padding: const EdgeInsets.fromLTRB(40, 40, 32, 40),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -147,7 +177,7 @@ class _BrandGlassPanel extends StatelessWidget {
   }
 }
 
-/// Móvil: marca compacta arriba y tarjeta centrada verticalmente.
+/// Móvil y tablet en vertical: marca compacta arriba y tarjeta centrada.
 class _CompactLayout extends StatelessWidget {
   const _CompactLayout();
 
@@ -158,12 +188,17 @@ class _CompactLayout extends StatelessWidget {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: const Column(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _BrandMark(compact: true),
-                SizedBox(height: 28),
-                _LoginForm(),
+                const _BrandMark(compact: true),
+                const SizedBox(height: 28),
+                // La tarjeta no se estira a todo el ancho: en un iPad en
+                // vertical un formulario de 700 px de ancho se lee fatal.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: const _LoginForm(),
+                ),
               ],
             ),
           ),
@@ -190,17 +225,16 @@ class _BrandMark extends StatelessWidget {
         BrandLogo(height: compact ? 130 : 160),
         if (!compact) ...[
           const SizedBox(height: 20),
-          SizedBox(
-            width: 320,
-            child: Text(
-              'Gestión inteligente de inventario, ventas y equipo '
-              'para tu negocio de skincare.',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 14,
-                height: 1.5,
-              ),
+          // Sin ancho propio: el panel de vidrio ya acota el texto, y
+          // fijarlo aquí lo desbordaría si el panel se estrecha.
+          Text(
+            'Gestión inteligente de inventario, ventas y equipo '
+            'para tu negocio de skincare.',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
         ],

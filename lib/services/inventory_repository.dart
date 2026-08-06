@@ -2,6 +2,30 @@ import 'package:flutter/foundation.dart' hide Category;
 
 import '../models/models.dart';
 
+/// Resultado de intentar eliminar un producto del catálogo.
+enum ProductDeletionOutcome {
+  /// No tenía historial (ni ventas ni movimientos): se borró el documento.
+  deleted,
+
+  /// Tenía historial: se dio de baja lógica (`active: false`) para no
+  /// romper la trazabilidad ni la restauración de stock al cancelar un
+  /// folio antiguo.
+  deactivated,
+
+  /// El producto ya no existe.
+  notFound,
+
+  /// Falló la operación (red, permisos…).
+  failed,
+}
+
+/// Resultado de cancelar un folio.
+///
+/// [notRestored] contiene las líneas cuyo producto ya no existe en el
+/// catálogo: su stock NO pudo devolverse y la UI debe avisarlo en vez de
+/// dar por hecho que se restauró todo.
+typedef SaleCancellation = ({String? error, List<SaleItem> notRestored});
+
 /// Contrato del repositorio central de datos (productos, categorías,
 /// movimientos, ventas y usuarios).
 ///
@@ -59,6 +83,11 @@ abstract class InventoryRepository extends ChangeNotifier {
 
   List<Category> get categories => List.unmodifiable(categoriesCache);
   List<Product> get products => List.unmodifiable(productsCache);
+
+  /// Productos vigentes (excluye los descontinuados por baja lógica). Es la
+  /// lista que deben ofrecer el POS y el alta de movimientos manuales.
+  List<Product> get activeProducts =>
+      productsCache.where((p) => p.active).toList();
   List<StockMovement> get movements => List.unmodifiable(movementsCache);
   List<Sale> get sales => List.unmodifiable(salesCache);
   List<AppUser> get users => List.unmodifiable(usersCache);
@@ -99,7 +128,7 @@ abstract class InventoryRepository extends ChangeNotifier {
   }
 
   List<Product> get lowStockProducts => productsCache
-      .where((p) => p.stockStatus != StockStatus.ok)
+      .where((p) => p.active && p.stockStatus != StockStatus.ok)
       .toList()
     ..sort((a, b) => a.stock.compareTo(b.stock));
 
@@ -198,7 +227,16 @@ abstract class InventoryRepository extends ChangeNotifier {
   });
 
   Future<void> updateProduct(Product updated);
-  Future<void> deleteProduct(String id);
+
+  /// Da de baja un producto.
+  ///
+  /// Nunca borra uno con historial: si aparece en ventas o movimientos se
+  /// marca como inactivo (ver [ProductDeletionOutcome]), para que cancelar
+  /// un folio antiguo siga pudiendo devolverle el stock.
+  Future<ProductDeletionOutcome> deleteProduct(String id);
+
+  /// Reactiva (o vuelve a descontinuar) un producto.
+  Future<void> setProductActive(String id, bool active);
 
   /// Registra una entrada o salida de stock con motivo obligatorio.
   /// Devuelve un mensaje de error o `null` si tuvo éxito.
@@ -223,10 +261,17 @@ abstract class InventoryRepository extends ChangeNotifier {
   /// registra un movimiento de entrada por cada línea para conservar la
   /// trazabilidad del historial.
   ///
-  /// Devuelve un mensaje de error o `null` si tuvo éxito: la cancelación
-  /// es una transacción y sin conexión no se puede resolver, así que la
-  /// UI necesita poder decirlo.
-  Future<String?> cancelSale(String saleId, {required String userName});
+  /// `error` trae un mensaje o `null` si tuvo éxito: la cancelación es una
+  /// transacción y sin conexión no se puede resolver, así que la UI
+  /// necesita poder decirlo.
+  ///
+  /// `notRestored` trae las líneas que no se pudieron reponer (producto ya
+  /// no existe en el catálogo) para que la UI lo informe en vez de dar por
+  /// hecho que se restauró todo.
+  Future<SaleCancellation> cancelSale(
+    String saleId, {
+    required String userName,
+  });
 
   // El alta de usuarios NO vive aquí: crear solo el documento dejaba una
   // cuenta que no podía iniciar sesión, y con id aleatorio en vez del uid

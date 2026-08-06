@@ -120,6 +120,7 @@ class Product {
     required this.maxStock,
     this.imageUrl = '',
     this.description = '',
+    this.active = true,
   });
 
   final String id;
@@ -138,6 +139,12 @@ class Product {
 
   /// Descripción comercial del producto.
   final String description;
+
+  /// `false` = producto descontinuado (baja lógica). Un producto con ventas
+  /// o movimientos nunca se borra de Firestore: se desactiva para no
+  /// romper la trazabilidad ni la restauración de stock al cancelar un
+  /// folio antiguo. Deja de ofrecerse en el POS y en Movimientos.
+  final bool active;
 
   StockStatus get stockStatus {
     if (stock <= 0) return StockStatus.out;
@@ -159,6 +166,7 @@ class Product {
     int? maxStock,
     String? imageUrl,
     String? description,
+    bool? active,
   }) =>
       Product(
         id: id,
@@ -172,6 +180,7 @@ class Product {
         maxStock: maxStock ?? this.maxStock,
         imageUrl: imageUrl ?? this.imageUrl,
         description: description ?? this.description,
+        active: active ?? this.active,
       );
 
   Map<String, dynamic> toMap() => {
@@ -185,6 +194,7 @@ class Product {
         'maxStock': maxStock,
         'imageUrl': imageUrl,
         'description': description,
+        'active': active,
       };
 
   factory Product.fromMap(String id, Map<String, dynamic> map) => Product(
@@ -199,6 +209,7 @@ class Product {
         maxStock: ((map['maxStock'] ?? 0) as num).toInt(),
         imageUrl: (map['imageUrl'] ?? '') as String,
         description: (map['description'] ?? '') as String,
+        active: (map['active'] ?? true) as bool,
       );
 }
 

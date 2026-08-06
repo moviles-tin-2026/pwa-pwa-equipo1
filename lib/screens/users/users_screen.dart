@@ -50,18 +50,12 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   void _showUserDetail(BuildContext context, AppUser user) {
-    final history = List.generate(6, (i) {
-      final when = DateTime.now().subtract(Duration(hours: i * 5 + 2));
-      final actions = [
-        'Inició sesión',
-        'Editó perfil',
-        'Cambio de rol',
-        'Inactivado',
-        'Reactivado',
-        'Registrado en el sistema',
-      ];
-      return (time: when, action: actions[i % actions.length]);
-    });
+    final repo = context.read<InventoryRepository>();
+    final history = userActivityHistory(
+      sales: repo.sales,
+      movements: repo.movements,
+      userName: user.name,
+    );
 
     showDialog<void>(
       context: context,
@@ -137,30 +131,54 @@ class _UsersScreenState extends State<UsersScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 220),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: history.length,
-                  separatorBuilder: (_, _) => const Divider(height: 8),
-                  itemBuilder: (context, i) {
-                    final entry = history[i];
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(entry.action),
-                        Text(
-                          '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
+              if (history.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Sin ventas ni movimientos registrados a nombre de '
+                    'este usuario.',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: history.length,
+                    separatorBuilder: (_, _) => const Divider(height: 8),
+                    itemBuilder: (context, i) {
+                      final entry = history[i];
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.label,
+                              style: TextStyle(
+                                color: entry.isNegative
+                                    ? AppTheme.danger
+                                    : null,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          const SizedBox(width: 8),
+                          Text(
+                            '${TimeOfDay.fromDateTime(entry.time).format(context)} · ${entry.time.day}/${entry.time.month}',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -388,20 +406,27 @@ class _UsersScreenState extends State<UsersScreen> {
               message: 'Ajusta los filtros para encontrar un usuario.',
             )
           else
-            GridView.count(
-              crossAxisCount: isMobile ? 1 : 2,
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: isMobile ? 2.6 : 3.2,
-              children: [
-                for (final user in users)
-                  InkWell(
-                    onTap: () => _showUserDetail(context, user),
-                    child: _UserTile(user: user),
-                  ),
-              ],
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isMobile ? 1 : 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                // Alto explícito en vez de `childAspectRatio`: con una
+                // proporción fija el alto lo decide el ancho de la
+                // columna, y en un iPad en vertical las tarjetas salían
+                // más bajas que su propio contenido. 92 px son fijos
+                // (padding, avatar y menú); el resto es texto y crece con
+                // el ajuste de tamaño de letra del sistema.
+                mainAxisExtent:
+                    92 + MediaQuery.textScalerOf(context).scale(44),
+              ),
+              itemCount: users.length,
+              itemBuilder: (context, index) => InkWell(
+                onTap: () => _showUserDetail(context, users[index]),
+                child: _UserTile(user: users[index]),
+              ),
             ),
         ],
       ),

@@ -8,7 +8,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:login_app/models/models.dart';
-import 'package:login_app/services/inventory_repository.dart';
+
+import 'fake_repository.dart';
 
 void main() {
   Product product(String id, String name, String sku) => Product(
@@ -23,10 +24,10 @@ void main() {
         maxStock: 40,
       );
 
-  late _FakeRepository repo;
+  late FakeRepository repo;
 
   setUp(() {
-    repo = _FakeRepository([
+    repo = FakeRepository(products: [
       product('p1', 'Vitamin C Serum', 'AV-001'),
       product('p2', 'Mineral Sunscreen', 'AV-002'),
     ]);
@@ -56,73 +57,4 @@ void main() {
     expect(repo.productBySku(''), isNull);
     expect(repo.productBySku('   '), isNull);
   });
-}
-
-/// Repositorio con el catálogo en memoria: las lecturas de
-/// [InventoryRepository] son las reales, las escrituras no se usan aquí.
-class _FakeRepository extends InventoryRepository {
-  _FakeRepository(List<Product> products) {
-    productsCache.addAll(products);
-  }
-
-  @override
-  Future<void> addCategory(String name, String description) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateCategory(String id, String name, String description) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<bool> deleteCategory(String id) async => throw UnimplementedError();
-
-  @override
-  Future<void> createProduct({
-    required String name,
-    required String sku,
-    required String categoryId,
-    required double costPrice,
-    required double salePrice,
-    required int stock,
-    required int minStock,
-    required int maxStock,
-    String imageUrl = '',
-    String description = '',
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateProduct(Product updated) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteProduct(String id) async => throw UnimplementedError();
-
-  @override
-  Future<String?> registerMovement({
-    required String productId,
-    required MovementType type,
-    required int quantity,
-    required String reason,
-    required String userName,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<({Sale? sale, String? error})> checkoutSale({
-    required List<SaleItem> items,
-    required PaymentMethod paymentMethod,
-    required String userName,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<String?> cancelSale(String saleId, {required String userName}) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateUser(AppUser updated) async => throw UnimplementedError();
-
-  @override
-  Future<void> deleteUser(String id) async => throw UnimplementedError();
 }

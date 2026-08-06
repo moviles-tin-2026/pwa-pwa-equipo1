@@ -430,19 +430,65 @@ class _SaleCard extends StatelessWidget {
             style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final error =
-                  await repo.cancelSale(sale.id, userName: user.name);
+              final result = await repo.cancelSale(
+                sale.id,
+                userName: user.name,
+              );
               if (!context.mounted) return;
-              if (error != null) {
-                showErrorSnackBar(context, error);
+              if (result.error != null) {
+                showErrorSnackBar(context, result.error!);
                 return;
               }
-              showSuccessSnackBar(
-                context,
-                'Folio ${sale.folio} cancelado; stock restaurado',
-              );
+              if (result.notRestored.isEmpty) {
+                showSuccessSnackBar(
+                  context,
+                  'Folio ${sale.folio} cancelado; stock restaurado',
+                );
+                return;
+              }
+              // Restauración parcial: el admin tiene que enterarse de qué
+              // líneas quedaron sin devolver para ajustarlas a mano.
+              _showPartialRestoreWarning(context, result.notRestored);
             },
             child: const Text('Cancelar venta'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPartialRestoreWarning(
+    BuildContext context,
+    List<SaleItem> notRestored,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
+        title: Text('Folio ${sale.folio} cancelado parcialmente'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estas líneas NO devolvieron stock porque su producto ya no '
+              'existe en el catálogo. Ajústalas manualmente si hace falta:',
+            ),
+            const SizedBox(height: 12),
+            for (final item in notRestored)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  '• ${item.quantity}× ${item.productName}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Entendido'),
           ),
         ],
       ),

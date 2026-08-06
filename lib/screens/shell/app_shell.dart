@@ -250,7 +250,10 @@ class _AppShellState extends State<AppShell> {
               borderRadius: BorderRadius.circular(12),
               onTap: () => controller.openView(),
               child: Container(
-                width: 240,
+                // En tablet la topbar reparte el ancho entre título,
+                // buscador, campana y usuario: 240 px fijos apretaban al
+                // título hasta hacerlo desaparecer.
+                width: context.isDesktop ? 240 : 180,
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
@@ -262,12 +265,16 @@ class _AppShellState extends State<AppShell> {
                   children: [
                     Icon(Icons.search, size: 18, color: AppTheme.mauve),
                     SizedBox(width: 8),
-                    Text(
-                      'Buscar productos…',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
-                        color: AppTheme.mauve,
+                    Expanded(
+                      child: Text(
+                        'Buscar productos…',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          color: AppTheme.mauve,
+                        ),
                       ),
                     ),
                   ],
@@ -500,30 +507,39 @@ class _AppShellState extends State<AppShell> {
               ),
               if (!compact) ...[
                 const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      user.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Montserrat',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.cocoa,
+                // Acotado: sin un ancho máximo el `Row` de la topbar crece
+                // con el nombre de quien tenga la sesión abierta —la
+                // elipsis del Text nunca llegaba a activarse— y un nombre
+                // largo empujaba a la campana fuera de la pantalla.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        user.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.cocoa,
+                        ),
                       ),
-                    ),
-                    Text(
-                      user.role.label,
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 10,
-                        color: AppTheme.mauve,
+                      Text(
+                        user.role.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          color: AppTheme.mauve,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 4),
                 const Icon(
