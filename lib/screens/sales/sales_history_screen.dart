@@ -430,22 +430,9 @@ class _SaleCard extends StatelessWidget {
             style: FilledButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () async {
               Navigator.pop(dialogContext);
-<<<<<<< HEAD
               final result = await repo.cancelSale(
                 sale.id,
                 userName: user.name,
-=======
-              final error =
-                  await repo.cancelSale(sale.id, userName: user.name);
-              if (!context.mounted) return;
-              if (error != null) {
-                showErrorSnackBar(context, error);
-                return;
-              }
-              showSuccessSnackBar(
-                context,
-                'Folio ${sale.folio} cancelado; stock restaurado',
->>>>>>> ba5ad00e695b52a7d354e0446ce95919e3f19609
               );
               if (!context.mounted) return;
               if (result.error != null) {

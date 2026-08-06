@@ -345,7 +345,6 @@ class FirestoreInventoryRepository extends InventoryRepository {
   }
 
   @override
-<<<<<<< HEAD
   Future<SaleCancellation> cancelSale(
     String saleId, {
     required String userName,
@@ -363,24 +362,6 @@ class FirestoreInventoryRepository extends InventoryRepository {
         if (sale.cancelled) {
           throw _TransactionError('El folio ${sale.folio} ya estaba cancelado');
         }
-=======
-  Future<String?> cancelSale(String saleId, {required String userName}) async {
-    try {
-      await _cancelSaleTransaction(saleId, userName);
-      return null;
-    } catch (e) {
-      return _writeErrorMessage(e, action: 'cancelar la venta');
-    }
-  }
-
-  Future<void> _cancelSaleTransaction(String saleId, String userName) async {
-    await _db.runTransaction<void>((tx) async {
-      final saleRef = _db.collection('sales').doc(saleId);
-      final saleSnap = await tx.get(saleRef);
-      if (!saleSnap.exists) return;
-      final sale = Sale.fromMap(saleSnap.id, saleSnap.data()!);
-      if (sale.cancelled) return;
->>>>>>> ba5ad00e695b52a7d354e0446ce95919e3f19609
 
         // Firestore exige todas las lecturas antes de cualquier escritura.
         final restores = <({
@@ -435,7 +416,7 @@ class FirestoreInventoryRepository extends InventoryRepository {
       return (error: e.message, notRestored: const <SaleItem>[]);
     } catch (e) {
       return (
-        error: 'Error al cancelar la venta: $e',
+        error: _writeErrorMessage(e, action: 'cancelar la venta'),
         notRestored: const <SaleItem>[],
       );
     }
