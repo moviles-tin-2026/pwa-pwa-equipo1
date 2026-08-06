@@ -168,6 +168,7 @@ class KpiCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -197,16 +198,21 @@ class KpiCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontFamily: 'Montserrat',
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.01,
-                color: AppTheme.cocoa,
+          // `Flexible` + `FittedBox`: si la tarjeta se queda corta de
+          // alto —pantalla chica o "texto grande" del sistema— la cifra
+          // se encoge para caber en vez de desbordar la tarjeta.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.01,
+                  color: AppTheme.cocoa,
+                ),
               ),
             ),
           ),
@@ -555,20 +561,27 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ambos lados son flexibles: este encabezado se reutiliza en tarjetas
+    // estrechas (una columna de dashboard en tablet) donde un título largo
+    // más su acción no caben, y sin `Flexible` desbordarían sin elipsis.
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(
-            fontFamily: 'Montserrat',
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.16,
-            color: AppTheme.mauve,
+        Flexible(
+          child: Text(
+            title.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: 'Montserrat',
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.16,
+              color: AppTheme.mauve,
+            ),
           ),
         ),
-        ?action,
+        if (action != null) Flexible(child: action!),
       ],
     );
   }

@@ -243,11 +243,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             RoleBadge(role: user.role),
                             const SizedBox(width: 8),
-                            Text(
-                              user.active ? 'Cuenta activa' : 'Cuenta inactiva',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.mauve,
+                            Flexible(
+                              child: Text(
+                                user.active
+                                    ? 'Cuenta activa'
+                                    : 'Cuenta inactiva',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.mauve,
+                                ),
                               ),
                             ),
                           ],

@@ -406,20 +406,27 @@ class _UsersScreenState extends State<UsersScreen> {
               message: 'Ajusta los filtros para encontrar un usuario.',
             )
           else
-            GridView.count(
-              crossAxisCount: isMobile ? 1 : 2,
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: isMobile ? 2.6 : 3.2,
-              children: [
-                for (final user in users)
-                  InkWell(
-                    onTap: () => _showUserDetail(context, user),
-                    child: _UserTile(user: user),
-                  ),
-              ],
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isMobile ? 1 : 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                // Alto explícito en vez de `childAspectRatio`: con una
+                // proporción fija el alto lo decide el ancho de la
+                // columna, y en un iPad en vertical las tarjetas salían
+                // más bajas que su propio contenido. 92 px son fijos
+                // (padding, avatar y menú); el resto es texto y crece con
+                // el ajuste de tamaño de letra del sistema.
+                mainAxisExtent:
+                    92 + MediaQuery.textScalerOf(context).scale(44),
+              ),
+              itemCount: users.length,
+              itemBuilder: (context, index) => InkWell(
+                onTap: () => _showUserDetail(context, users[index]),
+                child: _UserTile(user: users[index]),
+              ),
             ),
         ],
       ),

@@ -279,21 +279,32 @@ class _ProductCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
+                    // Precio y stock flexibles: en un móvil de 320 px, con
+                    // la foto y el chip de estado comiendo ancho, un precio
+                    // de cuatro cifras desbordaba la fila.
                     Row(
                       children: [
-                        Text(
-                          formatCurrency(product.salePrice),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.brandNavy,
+                        Flexible(
+                          child: Text(
+                            formatCurrency(product.salePrice),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.brandNavy,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Text(
-                          'Stock: ${product.stock}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
+                        Flexible(
+                          child: Text(
+                            'Stock: ${product.stock}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ),
                       ],

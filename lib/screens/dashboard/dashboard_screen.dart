@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -43,7 +45,6 @@ class _AdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = context.watch<InventoryRepository>();
     final padding = context.pagePadding;
-    final isMobile = context.isMobile;
 
     final kpis = [
       KpiCard(
@@ -76,15 +77,7 @@ class _AdminDashboard extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.fromLTRB(padding, 16, padding, 32),
         children: [
-          GridView.count(
-            crossAxisCount: isMobile ? 2 : 4,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: isMobile ? 1.35 : 1.6,
-            children: kpis,
-          ),
+          _KpiGrid(cards: kpis),
           const SizedBox(height: 20),
           if (context.isDesktop)
             Row(
@@ -107,6 +100,52 @@ class _AdminDashboard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Grilla de tarjetas KPI, 2 columnas en móvil y 4 en pantallas anchas.
+///
+/// El alto de cada tarjeta es el mayor entre el que pide el diseño —una
+/// proporción del ancho de la columna— y el que pide su contenido. Con
+/// solo la proporción, el alto quedaba atado al ancho de la pantalla: en
+/// un móvil de 320 px las tarjetas salían más bajas que su propio texto,
+/// y con el ajuste de "texto grande" del sistema se cortaban en cualquier
+/// tamaño.
+class _KpiGrid extends StatelessWidget {
+  const _KpiGrid({required this.cards});
+
+  final List<Widget> cards;
+
+  static const double _spacing = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
+    final columns = isMobile ? 2 : 4;
+    final aspectRatio = isMobile ? 1.35 : 1.6;
+    // 36 px fijos (padding y borde de la tarjeta) más lo que ocupan la
+    // insignia del ícono, el título y la cifra, que sí crecen con el
+    // tamaño de letra del sistema.
+    final minExtent = 36 + MediaQuery.textScalerOf(context).scale(78);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tileWidth =
+            (constraints.maxWidth - _spacing * (columns - 1)) / columns;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: _spacing,
+            crossAxisSpacing: _spacing,
+            mainAxisExtent: math.max(tileWidth / aspectRatio, minExtent),
+          ),
+          itemCount: cards.length,
+          itemBuilder: (context, index) => cards[index],
+        );
+      },
     );
   }
 }
@@ -330,19 +369,33 @@ class _LowStockCard extends StatelessWidget {
                         size: 20,
                       ),
                       const SizedBox(width: 10),
+                      // Nombre y contador apilados en vez de en una sola
+                      // línea: con el chip de estado al lado, los dos
+                      // textos no caben en la tarjeta de un móvil chico.
+                      // Es además el mismo orden de lectura que usa el
+                      // menú de alertas de la topbar.
                       Expanded(
-                        child: Text(
-                          product.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Text(
-                        '${product.stock} / mín. ${product.minStock}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '${product.stock} / mín. ${product.minStock}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -412,14 +465,8 @@ class _OperatorDashboard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: context.isMobile ? 2 : 4,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: context.isMobile ? 1.35 : 1.6,
-            children: [
+          _KpiGrid(
+            cards: [
               KpiCard(
                 title: 'Ventas de hoy',
                 value: '${todaySales.length}',
