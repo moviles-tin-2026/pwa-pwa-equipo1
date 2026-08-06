@@ -10,10 +10,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:login_app/models/models.dart';
 import 'package:login_app/services/inventory_repository.dart';
 
+import 'fake_repository.dart';
+
 void main() {
   group('ventana de datos', () {
     test('la de ventas cubre el gráfico de 6 meses y el mes en curso', () {
-      final repo = _FakeRepository();
+      final repo = FakeRepository();
       final now = DateTime.now();
 
       // El gráfico dibuja 6 meses hacia atrás; el más viejo debe caer
@@ -31,7 +33,7 @@ void main() {
     });
 
     test('la de movimientos cubre el filtro más amplio del módulo', () {
-      final repo = _FakeRepository();
+      final repo = FakeRepository();
       final now = DateTime.now();
       final last30 = DateTime(now.year, now.month, now.day)
           .subtract(const Duration(days: 29));
@@ -41,7 +43,7 @@ void main() {
     });
 
     test('la ventana no se mueve entre consultas', () {
-      final repo = _FakeRepository();
+      final repo = FakeRepository();
       expect(repo.salesWindowStart, repo.salesWindowStart);
       expect(repo.movementsWindowStart, repo.movementsWindowStart);
     });
@@ -50,7 +52,7 @@ void main() {
   group('métricas sobre la ventana', () {
     test('el total del mes suma solo ventas activas del mes en curso', () {
       final now = DateTime.now();
-      final repo = _FakeRepository()
+      final repo = FakeRepository()
         ..seedSales([
           _sale('v1', DateTime(now.year, now.month, 1), 100),
           _sale('v2', DateTime(now.year, now.month, 2), 250),
@@ -64,7 +66,7 @@ void main() {
 
     test('el top de productos ignora las ventas canceladas', () {
       final now = DateTime.now();
-      final repo = _FakeRepository()
+      final repo = FakeRepository()
         ..seedSales([
           _sale('v1', now, 100, productId: 'p1', productName: 'Serum'),
           _sale('v2', now, 100, productId: 'p2', productName: 'Bloqueador'),
@@ -103,74 +105,3 @@ Sale _sale(
       date: date,
       cancelled: cancelled,
     );
-
-/// Repositorio con las ventas en memoria: las lecturas y métricas de
-/// [InventoryRepository] son las reales, las escrituras no se usan aquí.
-class _FakeRepository extends InventoryRepository {
-  void seedSales(List<Sale> sales) => salesCache.addAll(sales);
-
-  @override
-  Future<void> addCategory(String name, String description) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateCategory(
-    String id,
-    String name,
-    String description,
-  ) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<bool> deleteCategory(String id) async => throw UnimplementedError();
-
-  @override
-  Future<void> createProduct({
-    required String name,
-    required String sku,
-    required String categoryId,
-    required double costPrice,
-    required double salePrice,
-    required int stock,
-    required int minStock,
-    required int maxStock,
-    String imageUrl = '',
-    String description = '',
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateProduct(Product updated) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteProduct(String id) async => throw UnimplementedError();
-
-  @override
-  Future<String?> registerMovement({
-    required String productId,
-    required MovementType type,
-    required int quantity,
-    required String reason,
-    required String userName,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<({Sale? sale, String? error})> checkoutSale({
-    required List<SaleItem> items,
-    required PaymentMethod paymentMethod,
-    required String userName,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<String?> cancelSale(String saleId, {required String userName}) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> updateUser(AppUser updated) async => throw UnimplementedError();
-
-  @override
-  Future<void> deleteUser(String id) async => throw UnimplementedError();
-}
