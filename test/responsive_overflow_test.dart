@@ -20,6 +20,7 @@ import 'package:login_app/screens/shell/app_shell.dart';
 import 'package:login_app/screens/users/users_screen.dart';
 import 'package:login_app/services/auth_service.dart';
 import 'package:login_app/services/inventory_repository.dart';
+import 'package:login_app/widgets/common.dart';
 
 import 'fake_repository.dart';
 
@@ -235,7 +236,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         while (tester.takeException() != null) {}
 
-        final brand = tester.getRect(find.text('AURA VITAE'));
+        // Anclado al logo y no al wordmark: cuando la marca pasó a ser
+        // una imagen, el `find.text('AURA VITAE')` de antes dejó de
+        // encontrar nada y la prueba falló en los seis anchos a la vez
+        // —incluido 1280, donde sobran 400 px de holgura—, que es la
+        // firma de un finder vacío y no la de un solape real.
+        final brand = tester.getRect(find.byType(BrandLogo));
         final form = tester.getRect(find.text('Iniciar sesión'));
 
         // Sin cruzarse: el layout ancho los pone lado a lado y el
