@@ -1,0 +1,1216 @@
+================================================================================
+RESUMEN EJECUTIVO DEL PROYECTO FINAL
+
+AURA VITAE · PyME-Sync
+Sistema de Control de Inventarios y Ventas Multiplataforma para PyMEs
+================================================================================
+
+Equipo 1
+Repositorio: https://github.com/moviles-tin-2026/pwa-pwa-equipo1
+Aplicación publicada: https://moviles-tin-2026.github.io/pwa-pwa-equipo1/
+Proyecto Firebase: pyme-47f32
+Stack: Flutter (Dart) · Firebase Authentication · Cloud Firestore · GitHub
+       Actions · GitHub Pages
+Fecha: agosto de 2026
+
+
+--------------------------------------------------------------------------------
+0. SÍNTESIS EJECUTIVA
+--------------------------------------------------------------------------------
+
+AURA VITAE · PyME-Sync es un sistema de gestión operativa —inventario, punto de
+venta y control de usuarios— construido para una PyME del sector skincare. Se
+implementó como una única base de código en Flutter que se compila
+simultáneamente a Web (PWA instalable), Android, iOS, Windows, macOS y Linux, y
+se apoya en Firebase como backend administrado: Firebase Authentication para la
+identidad y Cloud Firestore para la persistencia y la sincronización reactiva en
+tiempo real.
+
+El producto no es una maqueta navegable: es un sistema transaccional en
+operación. Las ventas descuentan inventario mediante transacciones atómicas de
+Firestore, los movimientos de almacén forman una bitácora inmutable, la
+cancelación de folios devuelve el stock y deja rastro contable, y los permisos de
+cada rol no solo ocultan botones en la interfaz sino que están reforzados en el
+servidor con reglas de seguridad de Firestore.
+
+El ciclo de vida del software está automatizado de extremo a extremo: cada cambio
+integrado a la rama principal dispara un pipeline de GitHub Actions que analiza
+estáticamente el código, ejecuta la batería de 49 pruebas automatizadas, compila
+la versión web optimizada a WebAssembly, versiona la caché del service worker con
+el hash del commit y publica el resultado en GitHub Pages. Ningún despliegue es
+manual y ningún despliegue ocurre sobre código que no haya pasado análisis y
+pruebas.
+
+En números: 28 archivos fuente Dart y ~10,500 líneas de código de aplicación, 5
+módulos funcionales más el módulo de configuración de cuenta, 6 colecciones en
+Firestore, 2 roles con matriz de permisos diferenciada, 49 pruebas
+automatizadas, 150 commits y un flujo de trabajo basado en ramas por integrante
+con revisión por Pull Request.
+
+
+--------------------------------------------------------------------------------
+1. PLANTEAMIENTO CONCEPTUAL: EL PROBLEMA Y LA SOLUCIÓN
+--------------------------------------------------------------------------------
+
+1.1 El problema de negocio
+
+Una PyME de skincare opera con un catálogo de decenas de referencias de rotación
+desigual, márgenes que varían mucho entre línea de producto y un punto de venta
+atendido por personal operativo que no es el dueño del negocio. Los tres dolores
+recurrentes de ese perfil de empresa son:
+
+  a) Desconexión entre el inventario real y el registrado. Cuando la venta y el
+     descuento de stock son dos actos separados (se cobra en una libreta o en una
+     terminal, y el inventario se ajusta después), el inventario deja de ser
+     confiable en cuestión de días.
+
+  b) Falta de trazabilidad. No se sabe quién registró qué, ni por qué el stock
+     bajó. Las mermas, las caducidades y los errores de captura se vuelven
+     indistinguibles entre sí.
+
+  c) Ausencia de separación de responsabilidades. La misma persona que cobra
+     puede modificar precios, borrar productos o cancelar ventas, lo que es un
+     riesgo de control interno antes que un problema técnico.
+
+1.2 La solución propuesta
+
+PyME-Sync ataca los tres puntos con decisiones de diseño explícitas:
+
+  a) La venta es la operación que modifica el inventario. No hay un paso
+     posterior de ajuste: cobrar en el POS ejecuta una transacción que valida
+     existencias, las descuenta y escribe el folio en el mismo acto atómico. Si
+     algo falla, no se cobra ni se descuenta nada.
+
+  b) Todo movimiento de stock deja un registro con producto, tipo, cantidad,
+     motivo obligatorio, usuario responsable y fecha. Esa bitácora es inmutable
+     por regla de servidor: se puede crear, jamás editar ni borrar.
+
+  c) El sistema define dos roles con capacidades distintas —Administrador y
+     Operador— y esa distinción se aplica en tres capas: el menú que ve cada
+     quien, las acciones habilitadas en pantalla y, sobre todo, las reglas de
+     escritura en la base de datos.
+
+1.3 Alcance funcional
+
+El sistema se estructuró en cinco módulos, alineados con el documento de diseño
+del proyecto (context/Diseno_Modulos_PyME_Sync.pdf):
+
+  Módulo 0 — Autenticación y Gestión de Usuarios
+  Módulo 1 — Dashboard / Panel de Control
+  Módulo 2 — Catálogos e Inventario
+  Módulo 3 — Movimientos de Almacén
+  Módulo 4 — Punto de Venta e Historial de Ventas
+
+A ellos se suma una pantalla transversal de Configuración de la cuenta,
+disponible para ambos roles.
+
+
+--------------------------------------------------------------------------------
+2. CRITERIO 1 — PLANIFICACIÓN, FLUJO Y DISEÑO UX/UI (20%)
+--------------------------------------------------------------------------------
+
+2.1 Del proceso de negocio a la arquitectura de navegación
+
+La estructura de navegación no se derivó de la tecnología sino del proceso de
+negocio. Se modelaron primero los dos recorridos reales de usuario y de ahí
+salieron las secciones del sistema:
+
+  Recorrido del Administrador (dueño / encargado):
+    1. Inicia sesión; el sistema detecta el rol admin y abre el Dashboard
+       administrativo.
+    2. Revisa ventas del mes, valor del inventario a costo y a precio de venta,
+       margen de utilidad y alertas críticas de stock.
+    3. Entra a Inventario para dar de alta productos (nombre, SKU, categoría,
+       costo, precio de venta, stock mínimo y máximo, foto, descripción) y
+       administrar categorías.
+    4. Audita en Movimientos la bitácora completa de entradas y salidas con el
+       usuario responsable de cada una.
+    5. Consulta en Ventas → Historial los ingresos históricos con detalle
+       financiero y cancela folios erróneos; el stock se restaura solo.
+    6. Administra en Usuarios el alta de operadores, el cambio de rol y la
+       desactivación de cuentas.
+
+  Recorrido del Operador (personal de mostrador):
+    1. Inicia sesión; el rol operator abre un Dashboard operativo, no gerencial.
+    2. Ve accesos rápidos (Nueva venta, Registrar entrada) y las alertas de stock
+       bajo del día.
+    3. Trabaja principalmente en Ventas → Terminal (POS): busca o escanea
+       productos por SKU, arma el carrito, elige método de pago y cobra.
+    4. Registra en Movimientos la entrada de mercancía del proveedor o la salida
+       por merma, siempre con motivo.
+    5. Consulta Inventario en modo lectura: ve existencias y precio de venta,
+       nunca costos ni márgenes.
+    6. Cierra su turno revisando en el Historial únicamente las ventas del día
+       (arqueo de caja).
+
+Cada recorrido está documentado en context/Roles_Credenciales_Recorridos.md, que
+funcionó como contrato de comportamiento durante el desarrollo y como guion de
+demostración al final.
+
+2.2 Prototipado previo
+
+Antes de escribir la aplicación en Flutter se construyó una maqueta navegable en
+React + TypeScript + Vite (carpeta Maqueta/) que sirvió para validar la jerarquía
+de pantallas, la disposición del POS y el lenguaje visual sin el costo de
+iterarlo sobre código de producción. Esa maqueta cumplió su función de
+herramienta de diseño y se conserva en el repositorio como evidencia de la etapa
+de planificación; la aplicación entregada es la implementación Flutter, que
+reemplaza por completo al prototipo.
+
+2.3 Arquitectura de la interfaz: un shell, cinco destinos
+
+La navegación se resolvió con un shell único (lib/screens/shell/app_shell.dart)
+que hospeda las secciones y adapta su presentación al ancho disponible, en lugar
+de un árbol de rutas independientes. Esto tiene dos ventajas concretas: el estado
+de la sesión y del repositorio de datos vive por encima de las pantallas —así una
+venta en el POS refresca instantáneamente el Dashboard sin recargar nada— y la
+navegación es la misma en teléfono y en escritorio, lo que evita mantener dos
+mapas de navegación en paralelo.
+
+El menú se construye filtrando por rol en un solo lugar:
+
+    List<AppSection> _sectionsFor(AppUser user) => [
+          AppSection.dashboard,
+          AppSection.inventory,
+          AppSection.movements,
+          AppSection.sales,
+          if (user.isAdmin) AppSection.users,
+        ];
+
+El Operador ve 4 secciones; el Administrador, 5. No hay pantallas "visibles pero
+deshabilitadas": lo que no le corresponde a un rol simplemente no existe en su
+menú.
+
+2.4 Diseño responsive real, no adaptación cosmética
+
+Se definieron tres puntos de quiebre (lib/core/responsive.dart) y cada uno cambia
+la estructura de la pantalla, no solo sus márgenes:
+
+  < 700 px   (móvil):      barra de navegación inferior, topbar compacta, listas
+                           en tarjetas, carrito del POS como barra fija que abre
+                           un bottom sheet con el detalle.
+  700–1099 px (tablet):    NavigationRail compacto lateral, cuadrículas de dos
+                           columnas.
+  >= 1100 px (escritorio): rail extendido con etiquetas, tablas amplias, y en el
+                           POS el catálogo a la izquierda con el carrito fijo a
+                           la derecha, siempre visible.
+
+El padding de página también escala (16 / 24 / 32 px) mediante una extensión de
+BuildContext, de modo que la regla vive en un solo sitio y todas las pantallas la
+heredan.
+
+2.5 Sistema de diseño y estética
+
+La identidad visual se formalizó como un sistema de diseño completo en
+lib/core/app_theme.dart (479 líneas), no como estilos dispersos por las
+pantallas. La paleta, bautizada "Warm Neutral Clean Beauty", responde al
+posicionamiento de marca del cliente ficticio —cosmética limpia, tonos cálidos y
+neutros— y está definida como constantes con rol semántico:
+
+  Merlot  #5E3F44  primario: botones, navegación activa, foco de inputs
+  Cocoa   #3E3333  texto y títulos
+  Mauve   #A47E82  secundario: iconos, etiquetas, texto de apoyo
+  Peony   #E6CECE  chips, hover, indicadores de selección
+  Almond  #F0E7E2  fondo general, campos de formulario, miniaturas
+  Blanco  #FFFFFF  tarjetas, paneles, barra lateral
+
+  Semánticos: éxito #4A7A4A, advertencia #A47E82, peligro #C0504F.
+
+La tipografía combina Montserrat (600/700/800) para marca, títulos, botones y
+etiquetas, con Inter (400–700) para cuerpo de texto. Se cargan desde Google Fonts
+pidiendo exclusivamente los pesos que el código usa —auditados uno por uno contra
+el tema y las pantallas— para no descargar variantes muertas.
+
+Sobre esa base se construyó un ColorScheme de Material 3 completo y se
+personalizaron los themes de AppBar, Card, InputDecoration, FilledButton,
+OutlinedButton, TextButton, NavigationBar, NavigationRail, Chip, Dialog,
+SnackBar, Switch, Divider, ProgressIndicator y FloatingActionButton. La
+consecuencia práctica: ningún widget de la aplicación define colores o
+tipografías propias; todos heredan del tema, y un cambio de marca se aplicaría
+editando un solo archivo.
+
+El lenguaje visual dominante es el glassmorphism: un fondo degradado de marca
+(AuraBackground) sobre el que flotan superficies translúcidas con desenfoque
+(GlassCard) que forman la barra lateral, la topbar y las tarjetas de contenido.
+La pantalla de login lleva esa estética al extremo con una fotografía de producto
+a pantalla completa y la tarjeta de acceso en vidrio encima, idéntica en móvil y
+en escritorio.
+
+2.6 Biblioteca de componentes compartidos
+
+lib/widgets/common.dart (692 líneas) concentra los componentes reutilizables que
+garantizan la consistencia: GlassCard, AuraBackground, KpiCard (tarjeta de
+métrica del dashboard), ProductImage (imagen de producto con su cadena de
+respaldo), SearchableProductSelect (selector con búsqueda por nombre o SKU),
+StockStatusChip (semáforo de existencias), RoleBadge, SectionHeader, EmptyState y
+los helpers de notificación showSuccessSnackBar / showErrorSnackBar /
+showTicketOutcome. Una pantalla nueva se arma componiendo estas piezas, lo que
+hace que la consistencia visual sea el camino de menor esfuerzo en lugar de una
+disciplina que haya que recordar.
+
+2.7 Detalles de experiencia de usuario que resuelven fricción real
+
+  · Arranque percibido. Flutter Web tarda segundos en descargar y evaluar su
+    motor antes del primer frame. Se insertó en index.html un splash con la marca
+    —estilos embebidos y tipografía del sistema, para no añadir ni una petición
+    de red— que se desvanece cuando la app monta su primer frame. Sin él, la
+    pantalla quedaba en blanco durante ese lapso.
+  · Estados vacíos y de error diferenciados. Las miniaturas de producto
+    distinguen visualmente tres situaciones —sin foto, cargando, foto rota— para
+    que un problema de datos sea diagnosticable de un vistazo.
+  · Mensajes de error redactados en lenguaje de negocio. Todos los códigos de
+    Firebase se traducen a frases accionables ("La contraseña actual es
+    incorrecta", "Sin conexión: no se puede cobrar la venta porque el inventario
+    se actualiza contra el servidor"), nunca se muestra un error crudo.
+  · Accesibilidad. El splash respeta prefers-reduced-motion, los controles
+    interactivos tienen altura mínima de 48 px, y los estados de carga se anuncian
+    con roles ARIA en el shell HTML.
+  · Preferencia de sección de inicio. Cada usuario elige en Configuración con qué
+    módulo abre el sistema; la preferencia se valida contra las secciones que su
+    rol permite, de modo que un cambio de rol no lo deje arrancando en un módulo
+    prohibido.
+
+
+--------------------------------------------------------------------------------
+3. CRITERIO 2 — DESARROLLO MÓVIL MULTIPLATAFORMA EN FLUTTER (25%)
+--------------------------------------------------------------------------------
+
+3.1 Justificación del stack: por qué Flutter es la decisión correcta aquí
+
+La elección de Flutter no fue por familiaridad sino por ajuste al problema. Los
+argumentos, en orden de peso para este proyecto:
+
+  a) Una base de código, seis destinos de compilación. El proyecto exige una
+     aplicación móvil funcional y, simultáneamente, una versión web publicada en
+     una URL estable. Con Flutter, ambos salen del mismo código: la misma
+     pantalla de POS que corre en el teléfono del operador es la que el
+     administrador abre en el navegador de su escritorio. La alternativa
+     —nativo Android + nativo iOS + una SPA web— habría significado tres
+     implementaciones, tres pruebas y tres oportunidades de divergencia
+     funcional, algo inviable para un equipo de tres personas en un semestre.
+
+  b) Consistencia visual garantizada. Flutter no delega en los widgets del
+     sistema operativo: dibuja cada píxel con su propio motor gráfico
+     (Impeller/Skia). Para un producto cuyo valor percibido depende de una
+     identidad de marca cuidada —una PyME de cosmética—, que el sistema se vea
+     exactamente igual en Chrome de escritorio, en Safari de un iPhone y en un
+     Android de gama media no es un lujo estético sino un requisito de producto.
+
+  c) El modelo declarativo encaja con datos en tiempo real. La interfaz de este
+     sistema es, esencialmente, una función del estado del inventario. Flutter,
+     con widgets declarativos y reconstrucción dirigida por cambios, permite que
+     un snapshot de Firestore que llega desde otro dispositivo se traduzca en un
+     repintado automático de la pantalla sin escribir una sola línea de código de
+     sincronización de vistas.
+
+  d) Ecosistema Firebase de primera clase. FlutterFire es mantenido por Google en
+     paralelo con Firebase; la configuración multiplataforma se genera
+     automáticamente (lib/firebase_options.dart) y los SDK de Auth y Firestore
+     tienen paridad de funciones en móvil y web, incluida la persistencia local.
+
+  e) Compilación web moderna. Flutter 3.x compila a WebAssembly, que es la ruta
+     que este proyecto usa en producción (flutter build web --wasm): mejor
+     rendimiento de ejecución que el JavaScript transpilado y una experiencia
+     web que se siente como aplicación, no como página.
+
+3.2 Arquitectura de la aplicación
+
+Se adoptó una arquitectura en capas con una regla estricta: la interfaz nunca
+habla directamente con Firebase.
+
+    lib/
+    ├── main.dart                        Punto de entrada + AuthGate
+    ├── firebase_options.dart            Configuración generada por FlutterFire
+    ├── core/
+    │   ├── app_theme.dart               Sistema de diseño + formateadores
+    │   └── responsive.dart              Breakpoints y helpers de tamaño
+    ├── models/
+    │   └── models.dart                  Modelos de dominio (toMap/fromMap)
+    ├── services/
+    │   ├── auth_service.dart            Autenticación, sesión y perfiles
+    │   ├── inventory_repository.dart    Contrato abstracto + métricas
+    │   └── firestore_inventory_repository.dart   Implementación Firestore
+    ├── screens/                         Un directorio por módulo
+    │   ├── login/  dashboard/  products/  movements/  sales/  users/
+    │   └── settings/  shell/
+    ├── widgets/
+    │   └── common.dart                  Componentes compartidos
+    └── utils/
+        ├── ticket_builder.dart          HTML del ticket (80 mm)
+        ├── print_helper*.dart           Impresión con importación condicional
+        └── ticket_outcome.dart
+
+La pieza central de este diseño es InventoryRepository: una clase abstracta que
+define el contrato de datos (qué se puede leer, qué se puede escribir, qué
+métricas se calculan) sin mencionar Firestore ni una sola vez.
+FirestoreInventoryRepository lo implementa contra la nube. Las pantallas dependen
+únicamente del contrato, de manera que el backend es transparente para la
+interfaz y sustituible: de hecho, las pruebas automatizadas inyectan una
+implementación falsa en memoria (test/fake_repository.dart) y ejercitan la lógica
+de negocio sin red y sin credenciales.
+
+3.3 Gestión de estado
+
+Se usa provider con ChangeNotifier, deliberadamente en lugar de soluciones más
+pesadas (BLoC, Riverpod, Redux). La justificación es de proporcionalidad: el
+sistema tiene dos fuentes de verdad —la sesión y los datos de inventario— y ambas
+son colecciones que cambian por eventos externos. ChangeNotifier expresa eso con
+precisión y sin ceremonia; introducir una arquitectura de eventos y estados
+tipados habría añadido cientos de líneas de andamiaje sin resolver ningún
+problema que este sistema tenga.
+
+Hay dos providers en el árbol:
+
+  · AuthService (ChangeNotifier), montado en la raíz. Mantiene el usuario actual,
+    escucha los cambios de sesión de Firebase y notifica.
+  · InventoryRepository (ChangeNotifier), montado solo cuando hay sesión activa y
+    con una ValueKey ligada al id del usuario: al cambiar de usuario se destruye
+    y se reconstruye el repositorio, lo que cancela las suscripciones anteriores
+    y evita que los datos de una sesión se filtren a la siguiente.
+
+El enrutamiento por sesión lo resuelve AuthGate en main.dart: sin sesión muestra
+Login, con sesión monta el shell con el menú ya filtrado por rol, y mientras
+Firebase resuelve el estado inicial muestra un indicador de carga —evitando el
+parpadeo de "login → dashboard" que sufre una aplicación que asume que no hay
+sesión hasta demostrar lo contrario.
+
+3.4 Modelado del dominio
+
+lib/models/models.dart define seis tipos con serialización explícita hacia y
+desde Firestore (toMap / fromMap), inmutables y con copyWith:
+
+  UserRole      enum admin | operator, con etiqueta legible.
+  AppUser       id (uid de Auth), name, email, role, active, recoveryEmail,
+                startSection.
+  Category      id, name, description.
+  Product       id, name, sku, categoryId, costPrice, salePrice, stock, minStock,
+                maxStock, imageUrl, description, active. Expone stockStatus
+                (ok/low/out) y margin (porcentaje de utilidad) como propiedades
+                calculadas.
+  StockMovement id, productId, productName, type (entry/exit), quantity, reason,
+                userName, date.
+  Sale          id, folio, items[], paymentMethod (cash/card/transfer), userName,
+                date, cancelled; con total e itemCount calculados.
+
+Un detalle de robustez deliberado: todos los fromMap aplican valores por defecto
+(?? 0, ?? '', ?? true) al leer. Esto significa que un documento antiguo de
+Firestore al que le falte un campo agregado después no rompe la aplicación —se
+lee con el valor por defecto—, comportamiento que está cubierto por una prueba
+automatizada explícita.
+
+3.5 Formularios y validación
+
+Todos los formularios usan Form + TextFormField con AutovalidateMode
+.onUserInteraction, de modo que el usuario recibe la corrección mientras escribe
+y no al pulsar Guardar. Las validaciones implementadas incluyen:
+
+  · Campos obligatorios y tipos numéricos, con filtros de entrada
+    (FilteringTextInputFormatter) que impiden teclear caracteres inválidos.
+  · Unicidad de SKU, comparando sin distinguir mayúsculas ni espacios sobrantes
+    —para el cajero, "AV-001" y "av-001 " son el mismo código— y excluyendo del
+    cotejo al producto que se está editando. Si el SKU pertenece a un producto
+    descontinuado, el mensaje lo dice, porque de otro modo señalaría un producto
+    que no aparece en ninguna lista.
+  · Coherencia de negocio: el stock máximo no puede ser menor que el mínimo; la
+    cantidad de un movimiento debe ser mayor que cero; una salida no puede
+    exceder las existencias.
+  · Robustez de contraseñas (detallada en §6.4).
+  · Formato de imagen: se aceptan rutas de asset empaquetado (res/…) o URLs
+    http(s) absolutas, y se rechaza cualquier otra cosa con un mensaje que
+    explica las dos formas válidas.
+
+3.6 Catálogos, POS y módulos operativos
+
+  Módulo 2 — Inventario (product_list_screen.dart, 683 líneas). Buscador
+  reactivo por nombre o SKU, filtros por categoría y por estado de stock,
+  cuadrícula de tarjetas con foto y semáforo de existencias. Ambos roles pueden
+  dar de alta productos; solo el Administrador edita, elimina y ve costos y
+  márgenes. La gestión de categorías (categories_screen.dart) impide eliminar una
+  categoría que algún producto esté usando.
+
+  Módulo 3 — Movimientos (movements_screen.dart, 690 líneas). Bitácora de
+  entradas y salidas con filtros temporales (hoy, 7 días, 30 días, rango
+  personalizado), y un formulario ágil de registro con motivo obligatorio.
+
+  Módulo 4 — Punto de venta (pos_screen.dart, 751 líneas). Búsqueda o escaneo por
+  SKU, carrito con cálculo de total en tiempo real, selección de método de pago y
+  cobro atómico. El layout se reorganiza por completo entre móvil y escritorio.
+  El historial (sales_history_screen.dart, 538 líneas) muestra todo al
+  Administrador —con cancelación de folios— y solo el día en curso al Operador.
+
+  Módulo 1 — Dashboard (dashboard_screen.dart, 506 líneas). Dos composiciones
+  distintas según el rol: la administrativa con ventas del mes, valor del
+  inventario a costo y a venta, margen de utilidad, gráfico de ventas de los
+  últimos seis meses, productos más vendidos y alertas críticas; la operativa con
+  accesos rápidos y alertas del día.
+
+3.7 Impresión de tickets: solución multiplataforma con importación condicional
+
+El POS emite un ticket de venta en formato de 80 mm (impresora térmica) generado
+como HTML con CSS de impresión, con datos del negocio, folio, fecha y hora,
+cajero, líneas con SKU, desglose informativo de IVA y marca de reimpresión o
+cancelación. El módulo está partido en tres archivos con importación condicional
+—print_helper.dart selecciona entre print_helper_web.dart y
+print_helper_stub.dart— para que el código compile en todas las plataformas
+aunque la impresión solo esté implementada en web.
+
+Dos decisiones técnicas relevantes:
+
+  · Se usa package:web + dart:js_interop en lugar de dart:html, porque dart:html
+    no existe en la compilación a WebAssembly con la que se publica el sitio. La
+    versión anterior, basada en dart:html, dejaba a la aplicación publicada
+    usando el stub y el ticket nunca se abría.
+  · La entrega del ticket degrada con elegancia en tres niveles: iframe oculto en
+    la misma página (ruta normal, no la bloquea el bloqueador de emergentes),
+    ventana nueva si el iframe falla, y descarga del archivo HTML si ambas fallan.
+    El resultado se comunica al usuario según cuál de las tres ocurrió.
+  · La construcción del HTML vive aparte (ticket_builder.dart) precisamente para
+    poder probarla sin navegador; tiene cuatro pruebas automatizadas, incluida una
+    que verifica el escapado de marcado en datos provenientes del usuario.
+
+3.8 Calidad del código
+
+  · flutter_lints con el conjunto recomendado, aplicado a todo el proyecto y
+    verificado en cada corrida del pipeline (flutter analyze).
+  · Documentación en el propio código. El proyecto está comentado en español y
+    los comentarios explican el porqué de las decisiones no obvias, no el qué del
+    código. Varios comentarios documentan bugs concretos que se corrigieron y
+    advierten cómo se reintroducirían: por ejemplo, la advertencia en pubspec.yaml
+    de que los assets fuente viven en res/ y no en assets/, porque assets/ es el
+    directorio de salida que el despliegue borra en cada corrida.
+  · 49 pruebas automatizadas (39 unitarias y 10 de widget) que cubren los modelos,
+    las ventanas de datos, las métricas del dashboard, la unicidad de SKU, la baja
+    lógica de productos, el historial de actividad de usuario, la validación y
+    generación de contraseñas, la resolución de imágenes y la construcción del
+    ticket.
+
+
+--------------------------------------------------------------------------------
+4. CRITERIO 3 — INTEGRACIÓN DE SERVICIOS CLOUD CON FIREBASE (25%)
+--------------------------------------------------------------------------------
+
+4.1 Justificación de Firebase como backend
+
+Para un sistema transaccional multiusuario y multiplataforma con un equipo de tres
+desarrolladores y sin presupuesto de infraestructura, Firebase resuelve
+simultáneamente cuatro problemas que de otro modo habrían consumido la mayor parte
+del semestre:
+
+  a) Identidad. Firebase Authentication entrega gestión de credenciales,
+     almacenamiento con hash de contraseñas, persistencia de sesión, envío de
+     correos de restablecimiento y protección contra fuerza bruta, todo
+     administrado. Implementar eso correctamente —y "correctamente" incluye no
+     inventar el manejo de contraseñas— es un proyecto en sí mismo.
+
+  b) Sincronización en tiempo real. El requisito de que una venta hecha en el
+     teléfono refresque al instante la pantalla del administrador es nativo en
+     Firestore mediante snapshots. Con una API REST convencional habría exigido
+     WebSockets propios o polling.
+
+  c) Atomicidad distribuida. Las transacciones de Firestore permiten validar y
+     descontar stock de varios productos como una sola operación indivisible,
+     con reintento automático ante conflicto. Es exactamente la garantía que un
+     punto de venta necesita para no vender existencias que otro dispositivo ya
+     vendió.
+
+  d) Seguridad del lado del servidor sin servidor propio. Las Security Rules
+     permiten expresar la matriz RBAC como código versionado que se ejecuta en la
+     infraestructura de Google. Sin ellas, ocultar botones en la interfaz sería
+     seguridad de teatro.
+
+4.2 Firebase Authentication
+
+  · Proveedor Email/Contraseña sobre el proyecto pyme-47f32.
+  · Persistencia LOCAL configurada explícitamente, de modo que la sesión
+    sobrevive a un F5 en la PWA. Esto se combina con un estado de carga inicial
+    en AuthGate para no mostrar el login a alguien que sí tiene sesión.
+  · La sesión se escucha con idTokenChanges(), que reacciona tanto al login y
+    logout como a la renovación del token.
+  · Todo error de Firebase se traduce a un mensaje de interfaz mediante un switch
+    exhaustivo sobre el código (user-not-found, wrong-password, invalid-email,
+    invalid-credential, network-request-failed, too-many-requests,
+    email-already-in-use, weak-password, requires-recent-login,
+    operation-not-allowed).
+
+Un problema no trivial que se resolvió: el alta de usuarios. La API
+createUserWithEmailAndPassword deja firmado al usuario recién creado, de modo que
+un administrador dando de alta a un operador habría sido expulsado de su propia
+sesión. La solución fue crear la cuenta en una instancia secundaria de Firebase
+(FirebaseApp con nombre 'pymesync-user-provisioning'), escribir el documento de
+perfil con la sesión del administrador —porque las reglas exigen rol admin para
+crear perfiles ajenos— y cerrar la sesión de la instancia secundaria al terminar.
+Además, si la creación de la cuenta tiene éxito pero la escritura del perfil
+falla, la cuenta se elimina: nunca queda una cuenta huérfana sin rol definido.
+
+4.3 Cloud Firestore: modelo de datos
+
+Seis colecciones, con el uid de Firebase Auth como clave primaria de los perfiles:
+
+  users/{uid}
+      name, email, role ('admin'|'operator'), active, recoveryEmail, startSection
+
+  categories/{autoId}
+      name, description
+
+  products/{autoId}
+      name, sku, categoryId, costPrice, salePrice, stock, minStock, maxStock,
+      imageUrl, description, active
+
+  movements/{autoId}
+      productId, productName, type ('entry'|'exit'), quantity, reason, userName,
+      date (epoch ms)
+
+  sales/{autoId}
+      folio, items[] (productId, productName, unitPrice, quantity),
+      paymentMethod, userName, date (epoch ms), cancelled, total
+
+  meta/counters
+      saleFolio — consecutivo de folios de venta
+
+Que users use el uid de Authentication como identificador del documento no es un
+detalle: es lo que hace posible que las reglas de seguridad comparen
+request.auth.uid con el documento y que el perfil se cargue en una sola lectura
+directa al iniciar sesión.
+
+El campo total se guarda desnormalizado en cada venta aunque sea derivable de las
+líneas, porque permite que las consultas de reportes no tengan que leer y sumar
+los arreglos de artículos.
+
+4.4 Sincronización reactiva
+
+FirestoreInventoryRepository abre cinco suscripciones con snapshots() —una por
+colección— en su constructor. Cada snapshot reemplaza la caché correspondiente y
+llama a notifyListeners(), lo que propaga el cambio a toda la interfaz suscrita.
+El efecto observable: una venta cobrada en un teléfono actualiza el stock, el
+dashboard y el historial en el navegador del administrador en menos de un
+segundo, sin recargar y sin ningún código de refresco escrito a mano. Las
+suscripciones se cancelan en dispose() para no dejar listeners colgados.
+
+4.5 Ventanas de datos: una corrección de diseño documentada
+
+La primera implementación acotaba ventas y movimientos con limit(300) y
+limit(200). Se detectó y corrigió un defecto de fondo: al superar esos volúmenes,
+el dashboard reportaba de menos sin avisar y el módulo de Movimientos dejaba de
+ser la bitácora completa que promete la documentación, todo en silencio.
+
+La solución fue acotar por fecha en lugar de por cantidad de documentos: 12 meses
+de ventas (cubre con holgura el gráfico de 6 meses y el total del mes en curso) y
+90 días de movimientos (cubre los filtros de hoy, 7 y 30 días con margen). El
+recorte es ahora explícito, se puede comunicar en pantalla y las métricas del
+período son exactas por construcción. El inicio de la ventana se fija al abrir la
+sesión de datos y no se recalcula en cada consulta, para que la interfaz y los
+datos no puedan discrepar mientras la aplicación está abierta. Cinco pruebas
+automatizadas protegen esta garantía.
+
+4.6 Transacciones atómicas
+
+Tres operaciones críticas se ejecutan como transacciones de Firestore:
+
+  a) Cobro de una venta (checkoutSale). Lee el contador de folios y todos los
+     productos del carrito; valida que cada uno exista, esté vigente y tenga
+     existencias suficientes; y solo entonces escribe: descuenta el stock de cada
+     línea, registra un movimiento de salida por producto con motivo "Venta:
+     V-000N", incrementa el contador y crea el documento de venta. Si cualquier
+     validación falla, no se escribe absolutamente nada. El folio es un
+     consecutivo legible con formato V-0001.
+
+  b) Registro de movimiento (registerMovement). Lee el producto, valida que una
+     salida no exceda el stock, aplica el delta y escribe la entrada de bitácora
+     en el mismo acto.
+
+  c) Cancelación de folio (cancelSale). Verifica que la venta exista y no esté ya
+     cancelada, devuelve el stock de cada línea, registra un movimiento de
+     entrada por producto con motivo "Devolución por cancelación: V-000N" —sin
+     ese movimiento la trazabilidad quedaría rota, porque el inventario subiría
+     sin que ningún registro lo explicara— y marca la venta como cancelada. Si
+     algún producto de esa venta ya no existe en el catálogo, la operación
+     informa qué líneas no se pudieron reponer en lugar de dar por hecho que se
+     restauró todo.
+
+Las tres respetan la regla de Firestore de completar todas las lecturas antes de
+cualquier escritura, y las tres traducen sus fallos a mensajes de negocio.
+
+4.7 Integridad referencial y baja lógica
+
+Un producto con historial nunca se borra. Al intentar eliminarlo, el repositorio
+consulta si existe algún movimiento que lo referencie; si lo hay, ejecuta una baja
+lógica (active: false) en lugar de un borrado. La razón es concreta: si se borrara
+y después se cancelara un folio antiguo que lo incluye, quedaría una línea sin
+stock que devolver y el histórico apuntaría a un identificador inexistente. Un
+producto descontinuado desaparece del POS y del alta de movimientos, deja de
+generar alertas de stock, pero permanece en el catálogo para sostener la
+trazabilidad. Cinco pruebas automatizadas cubren este comportamiento.
+
+La misma lógica protege a las categorías: no se puede eliminar una que esté en
+uso.
+
+4.8 Persistencia local y modo sin conexión
+
+La aplicación enciende explícitamente la caché local de Firestore
+(persistenceEnabled: true, cacheSizeBytes ilimitado). En web viene desactivada
+por defecto, y sin ella la PWA arrancaba sin conexión pero con las pantallas
+vacías, porque el service worker cachea la aplicación, no los datos.
+
+El alcance del modo sin conexión se documentó con honestidad en lugar de
+prometer más de lo que hace:
+
+  Funciona sin conexión:
+    · Abrir la aplicación ya instalada o visitada (service worker).
+    · Mantener la sesión iniciada (persistencia de Firebase Auth).
+    · Consultar inventario, ventas y movimientos ya vistos en ese dispositivo
+      (caché local de Firestore).
+
+  No funciona sin conexión, por diseño:
+    · Cobrar una venta, registrar un movimiento y cancelar un folio. Las tres son
+      transacciones y necesitan leer el stock del servidor para descontarlo de
+      forma atómica. Encolarlas sin conexión permitiría vender existencias que
+      otro dispositivo ya vendió, que es exactamente el problema que el sistema
+      existe para evitar.
+    · Iniciar sesión por primera vez en un dispositivo nuevo.
+
+Cuando el usuario intenta una de las operaciones bloqueadas, la aplicación
+responde con un mensaje que dice "sin conexión" y explica por qué, en vez de
+fallar en silencio o reportar un error técnico.
+
+4.9 Almacenamiento de imágenes: bucket local de assets
+
+Este punto merece una explicación detallada porque se apartó de la ruta obvia
+(Firebase Storage) por una restricción concreta del plan gratuito de Firebase, y
+por razones técnicas que conviene dejar documentadas.
+
+  Qué se implementó. El catálogo se sirve desde un bucket local de imágenes:
+  res/images/products/ contiene 30 fotografías de producto en formato WebP,
+  declaradas como assets de Flutter en pubspec.yaml y empaquetadas con la
+  aplicación. Firestore guarda únicamente referencias (una ruta de asset o una
+  URL), nunca binarios.
+
+  Cómo se resuelve la imagen de un producto. El widget ProductImage aplica una
+  cadena de resolución con respaldos:
+    1. Si imageUrl no empieza con http, se usa tal cual como ruta de asset.
+    2. Si está vacío o es una URL, se deriva la ruta desde el nombre del producto:
+       "Cleansing Foam" → res/images/products/cleansing-foam.webp.
+    3. Si ese asset no existe y hay una URL, se intenta la red.
+    4. Si nada resuelve, se muestra el icono de imagen rota.
+  Cada uno de los tres estados sin foto —sin ruta, cargando, error— tiene su
+  propio indicador visual para poder diagnosticar de un vistazo por qué una celda
+  está vacía.
+
+  Por qué esta decisión, y no Firebase Storage:
+    · Limitación del plan Spark. El proyecto opera íntegramente en el plan
+      gratuito Spark de Firebase, y ahí el aprovisionamiento y uso de Cloud
+      Storage está restringido: habilitar el bucket de almacenamiento para las
+      imágenes exige migrar al plan de pago Blaze, con una cuenta de facturación
+      y tarjeta asociadas. Esa fue la restricción que encontró el equipo al
+      intentar la ruta convencional. Asumir una dependencia de facturación por 30
+      fotografías estáticas de catálogo —contenido que no cambia en operación y
+      que ni siquiera necesita ser subido por el usuario— no era proporcional al
+      alcance del proyecto, de modo que la solución se rediseñó para obtener el
+      mismo resultado funcional sin salir del plan gratuito. Conviene subrayar
+      que la restricción es de plan, no de arquitectura: el sistema está
+      preparado para Storage y la migración sería un cambio localizado (ver el
+      último punto de esta lista).
+    · Rendimiento. Los assets empaquetados se sirven desde el mismo origen, los
+      cachea el service worker, y Flutter puede decodificarlos al tamaño de
+      presentación (cacheWidth ajustado por densidad de pantalla) en lugar de a
+      resolución completa. Una lista de 30 miniaturas no decodifica megapíxeles de
+      más ni hace 30 peticiones de red.
+    · Disponibilidad sin conexión. Las fotos del catálogo están dentro de la PWA,
+      así que el inventario se ve completo aunque no haya red. Imágenes remotas
+      habrían dejado las tarjetas vacías en modo offline.
+    · CORS. Se probó alojar las imágenes en Google Drive y se documentó por qué
+      no sirve: Drive no envía las cabeceras CORS que el navegador exige para
+      decodificar los bytes, de modo que cada miniatura fallaba primero por la vía
+      normal (unos 300 ms perdidos por imagen) y solo se dibujaba mediante el
+      respaldo de elemento <img>, que no admite redimensionado ni queda cacheado
+      por el service worker.
+    · Se conserva la puerta abierta. El campo imageUrl admite URLs http(s)
+      absolutas, de modo que si el negocio necesitara subir fotos desde la
+      aplicación, la migración a Storage sería sustituir el origen de ese campo,
+      sin tocar el modelo ni las pantallas.
+
+  Limitación conocida y documentada. Derivar la ruta del nombre del producto ata
+  la foto a ese nombre: renombrar el producto rompe el vínculo y aparece el icono
+  de imagen rota. Es una decisión consciente para no tener que guardar la ruta en
+  cada documento, y el campo imageUrl —que tiene prioridad sobre la derivación—
+  es la vía de escape cuando se necesita fijarla explícitamente.
+
+4.10 Configuración multiplataforma
+
+lib/firebase_options.dart, generado por FlutterFire CLI, contiene la
+configuración de las cinco plataformas registradas (Android, iOS, macOS, Web,
+Windows) y selecciona la correcta en tiempo de ejecución según el destino. El
+archivo firebase.json declara además la ubicación de las reglas y los índices, de
+modo que el proyecto Firebase es reproducible desde el repositorio con
+firebase deploy.
+
+
+--------------------------------------------------------------------------------
+5. CRITERIO 4 — DESPLIEGUE WEB Y CIERRE TÉCNICO DEL PRODUCTO (20%)
+--------------------------------------------------------------------------------
+
+5.1 La aplicación publicada
+
+URL estable y funcional: https://moviles-tin-2026.github.io/pwa-pwa-equipo1/
+
+El sitio es una Progressive Web App instalable: manifest.json declara nombre,
+iconos en 192 y 512 px (incluidas las variantes maskable para Android),
+display standalone, colores de tema y fondo alineados con la identidad de marca, y
+scope relativo. Un usuario puede instalarla desde el navegador y usarla como
+aplicación de escritorio o de teléfono, con su propio icono y sin barra de
+navegador.
+
+5.2 Pipeline de integración y despliegue continuo
+
+El archivo .github/workflows/deploy-pages.yml define el pipeline. Se dispara con
+cada push a main (y manualmente vía workflow_dispatch), con control de
+concurrencia que cancela una corrida anterior en curso para no publicar builds
+fuera de orden. Sus etapas:
+
+  1. Checkout del repositorio.
+  2. Instalación de Flutter (canal stable) con caché de dependencias.
+  3. flutter pub get — resolución de dependencias.
+  4. flutter analyze — análisis estático. Un solo warning detiene el despliegue.
+  5. flutter test — las 49 pruebas. Una sola falla detiene el despliegue.
+  6. flutter build web --wasm --release --base-href "/pwa-pwa-equipo1/" —
+     compilación optimizada a WebAssembly con la ruta base del repositorio.
+  7. Versionado de la caché del service worker: se reescribe CACHE_VERSION con
+     el hash corto del commit (aura-vitae-<sha7>) y se verifica que el reemplazo
+     haya ocurrido; si no, el build falla a propósito.
+  8. Copia del build compilado a la raíz del repositorio.
+  9. Commit y push automático con la identidad de github-actions[bot] y el
+     mensaje "build: actualizar GitHub Pages con últimos cambios [automatizado]".
+
+Las etapas 4 y 5 son la razón por la que este pipeline es control de calidad y no
+solo automatización de copiado: es imposible publicar código que no compile
+limpiamente y que no pase las pruebas. La verificación de la etapa 7 es igual de
+deliberada: publicar con la versión de caché de desarrollo reintroduciría
+silenciosamente un bug de caché obsoleta, así que el pipeline prefiere romperse a
+publicar mal.
+
+El disparador excluye (paths-ignore) los archivos que el propio pipeline genera
+—assets/, canvaskit/, main.dart.js, index.html, sw.js y demás salidas del
+build—, lo que evita que el commit automatizado se dispare a sí mismo en un bucle
+infinito.
+
+5.3 Estrategia de caché y el problema de la versión obsoleta
+
+El service worker (web/sw.js) implementa una estrategia mixta y documentada:
+
+  · Precache del app shell al instalar: index.html, el bootstrap de Flutter, el
+    manifest y los iconos, unos 400 KB.
+  · Navegaciones: red primero, con respaldo al index cacheado (modo offline).
+  · Estáticos del mismo origen: caché primero, poblada bajo demanda.
+  · Peticiones a otros orígenes (Firestore, Google Fonts): no se interceptan. Los
+    datos ya los cachea Firestore con su persistencia local; interceptarlos aquí
+    duplicaría el trabajo y rompería la sincronización en vivo.
+
+Una decisión que merece explicación: los binarios pesados quedan deliberadamente
+fuera del precache. main.dart.wasm (2.7 MB), main.dart.js (3.2 MB, el respaldo
+para navegadores sin WasmGC), skwasm.wasm (3.5 MB) y canvaskit.wasm (6.9 MB)
+suman 17 MB, de los cuales cada navegador ejecuta menos de la mitad —usa
+main.dart.wasm + skwasm, o main.dart.js + canvaskit, nunca los cuatro. Se
+excluyen por dos razones: cache.addAll es atómico, de modo que un timeout en
+cualquiera de esos 17 MB tumba la instalación completa del service worker sin
+error visible y deja al usuario sin modo offline; y la página los solicita por su
+cuenta al arrancar, pasando por el manejador de fetch que sí los cachea, de modo
+que precargarlos haría que el visitante los descargara dos veces compitiendo por
+ancho de banda.
+
+El versionado de CACHE_VERSION con el hash del commit cierra el problema
+complementario: como los estáticos se sirven caché primero, sin cambiar el nombre
+de la caché los navegadores que ya visitaron el sitio seguirían ejecutando la
+versión anterior indefinidamente. Al activarse, el service worker elimina todas
+las cachés cuyo nombre no coincida con la versión actual.
+
+5.4 Optimización de rendimiento web
+
+Se trabajaron específicamente las métricas de carga percibida:
+
+  · Inicialización no bloqueante de Firebase. En web, Firebase.initializeApp
+    dispara una cadena de peticiones encadenadas (el iframe de Auth y luego
+    getProjectConfig) que medía ~2.5 s en Lighthouse. Esperarla antes de
+    runApp retrasaba el primer frame ese mismo tiempo y era lo que sostenía el
+    Speed Index cerca de 10 s. La solución: se arranca la inicialización sin
+    await y se pinta de inmediato; cada operación que necesita Firebase espera
+    ese Future en el punto exacto donde lo usa. En la práctica ya está resuelto
+    mucho antes de que alguien termine de escribir sus credenciales.
+  · Splash embebido con estilos en línea y tipografía del sistema, que elimina la
+    pantalla en blanco durante la carga del motor de Flutter.
+  · Hoja de Google Fonts cargada de forma no bloqueante (media="print" +
+    onload) con display=swap y solo los pesos realmente usados, más preconnect a
+    los dominios de fuentes y un respaldo dentro de <noscript>.
+  · Compilación a WebAssembly, más rápida de ejecutar que el JavaScript
+    transpilado.
+  · Decodificación de imágenes al tamaño de presentación mediante cacheWidth
+    ajustado por la densidad de píxeles del dispositivo.
+
+5.5 Refactorización, organización y mejora del código fuente
+
+El repositorio evidencia un proceso de mejora continua, no un desarrollo lineal.
+Con 150 commits y un flujo de trabajo de rama por integrante integrado a main
+mediante Pull Request, el historial documenta refactorizaciones sustantivas, cada
+una con su justificación:
+
+  · fix(datos): acotar ventas y movimientos por fecha, no por cantidad — sustituye
+    los limit() por ventanas temporales para que las métricas dejen de reportar de
+    menos en silencio (§4.5).
+  · fix(auth): cargar perfil solo desde users/{uid} y bloquear acceso sin perfil
+    válido — elimina la inferencia de rol y cierra la puerta a que alguien sin
+    perfil obtenga acceso (§6.2).
+  · feat(pwa): habilitar la caché local de Firestore y acotar el modo offline —
+    hace que la PWA sin conexión muestre datos y documenta con precisión qué
+    funciona y qué no (§4.8).
+  · fix(inventario): rechazar SKUs duplicados al guardar un producto — cierra la
+    ambigüedad en la búsqueda del cajero.
+  · fix(ticket): generar el ticket en la compilación wasm — migración de
+    dart:html a package:web (§3.7).
+  · feat: crear la cuenta de Firebase Auth en el alta de usuarios — antes el alta
+    solo escribía en Firestore y el usuario creado no podía iniciar sesión (§4.2).
+  · fix(auth): preservar la sesión de Firebase en web al recargar y mostrar estado
+    de carga al arrancar.
+  · Desactivación de usuarios, historial de actividad, pantalla de cuenta y correo
+    de recuperación, flujo de recuperación de contraseña.
+
+La organización del código refleja esa madurez: separación estricta entre
+modelos, servicios, pantallas y componentes; un contrato abstracto que aísla a la
+interfaz del backend; un sistema de diseño centralizado; y utilidades
+desacopladas de la plataforma para poder probarse.
+
+5.6 Documentación entregada
+
+  · README.md — descripción del sistema, credenciales de prueba, módulos, matriz
+    RBAC, alcance detallado del modo sin conexión, stack y estructura.
+  · context/Roles_Credenciales_Recorridos.md — roles, credenciales con UID,
+    matriz de permisos por módulo y los dos recorridos de usuario paso a paso.
+  · context/Diseno_Modulos_PyME_Sync.pdf — documento de diseño modular original.
+  · firestore.rules — la matriz RBAC como código, comentada regla por regla.
+  · Comentarios en el código que documentan las decisiones no evidentes y
+    advierten cómo se reintroducirían los bugs corregidos.
+
+
+--------------------------------------------------------------------------------
+6. SEGURIDAD DE LA INFORMACIÓN Y CONTROL DE ACCESO (RBAC)
+--------------------------------------------------------------------------------
+
+6.1 Modelo de roles
+
+Dos roles, definidos como un enum en el dominio y como un campo role
+('admin' | 'operator') en el documento users/{uid}:
+
+  Capacidad                            Administrador   Operador
+  ─────────────────────────────────────────────────────────────
+  Dashboard                                 Sí            Sí (vista operativa)
+  Punto de venta                            Sí            Sí
+  Registrar movimientos de stock            Sí            Sí
+  Consultar inventario                      Sí            Sí (sin costos)
+  Dar de alta productos                     Sí            Sí
+  Editar y eliminar productos               Sí            No
+  Gestionar categorías                      Sí            No
+  Ver precios de costo y márgenes           Sí            No
+  Historial de ventas completo              Sí            No (solo el día)
+  Cancelar folios                           Sí            No
+  Gestión de usuarios                       Sí            No (módulo oculto)
+  Configuración de la propia cuenta         Sí            Sí
+
+6.2 Defensa en profundidad: tres capas
+
+Capa 1 — Navegación. El menú se construye filtrando por rol; la sección Usuarios
+no existe para el Operador.
+
+Capa 2 — Interfaz. Los controles restringidos se ocultan o se envuelven en el
+guardián AdminOnly, que sustituye el contenido por un aviso si el usuario no es
+administrador. Los precios de costo y el margen simplemente no se renderizan en
+la vista del Operador.
+
+Capa 3 — Servidor. Las Security Rules de Firestore son la capa que realmente
+importa, porque es la única que no se puede eludir manipulando el cliente. Toda
+regla parte de una función que lee el documento de perfil del solicitante:
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.role == 'admin';
+    }
+
+Y de ahí se derivan las restricciones por colección:
+
+  users/      Cada quien lee su propio perfil; el admin lee todos. El alta de
+              perfiles ajenos exige rol admin. Un usuario solo puede modificar de
+              sí mismo name, recoveryEmail, startSection y email —y este último
+              únicamente si coincide con el correo verificado en su token, de modo
+              que el perfil no pueda quedar apuntando a una dirección que no es la
+              de su sesión. Los campos role y active quedan fuera a propósito: el
+              rol y la baja son atribución exclusiva del administrador. Solo el
+              admin elimina.
+
+  products/   Lectura para cualquier usuario autenticado. El Operador puede crear
+              productos, pero en los existentes solo puede modificar el campo
+              stock, verificado con:
+                  request.resource.data.diff(resource.data)
+                    .affectedKeys().hasOnly(['stock'])
+              Es decir: por más que se manipulara el cliente, un operador no puede
+              alterar un precio. Solo el admin elimina.
+
+  categories/ Lectura para autenticados, escritura solo para admin.
+
+  movements/  Bitácora de auditoría: se puede crear y leer, pero
+              allow update, delete: if false. Los movimientos son inmutables por
+              regla de servidor, no por convención de la aplicación.
+
+  sales/      Creación y lectura para autenticados. La actualización exige rol
+              admin y además está limitada al campo cancelled: ni siquiera un
+              administrador puede alterar el importe o las líneas de una venta ya
+              emitida. El borrado está prohibido para todos.
+
+  meta/       El contador de folios, escribible por la transacción de venta.
+
+Un punto que se reforzó explícitamente durante el desarrollo: la carga del perfil
+al iniciar sesión no admite respaldos. Si el documento users/{uid} no existe o no
+se puede leer, no hay sesión. La versión anterior infería el rol del prefijo del
+correo como mecanismo de respaldo sin conexión, lo que era una vía de escalada de
+privilegios; el commit "fix(auth): cargar perfil solo desde users/{uid} y
+bloquear acceso sin perfil válido" la eliminó.
+
+6.3 Ciclo de vida de las cuentas
+
+  · Alta. El administrador crea la cuenta desde Gestión de Usuarios: se registra
+    en Firebase Auth y se escribe el perfil con rol en users/{uid}, en la
+    operación transaccionalmente protegida descrita en §4.2. El sistema genera y
+    muestra una contraseña temporal que el administrador entrega a la persona.
+  · Desactivación. El campo active permite dar de baja sin borrar. Una cuenta
+    desactivada es expulsada en el arranque de sesión (se verifica en
+    _handleAuthState y en signIn, y se ejecuta signOut). Se prefiere desactivar
+    sobre eliminar porque de cada usuario cuelgan las ventas y movimientos que
+    registró.
+  · Auditoría. Cada usuario tiene un historial de actividad construido a partir de
+    ventas y movimientos reales asociados a su nombre —nunca datos inventados—,
+    con la precaución de no repetir una venta una vez por cada línea de producto.
+    Está cubierto por cinco pruebas.
+
+6.4 Política de contraseñas
+
+Se valida en el cliente antes de llamar a Firebase, para dar un mensaje preciso en
+lugar de un genérico weak-password: entre 8 y 64 caracteres, sin espacios en
+blanco, con al menos una mayúscula, una minúscula, un número y un carácter
+especial. Ocho pruebas automatizadas cubren la validación, la confirmación y el
+generador.
+
+El generador de contraseñas temporales usa Random.secure() (fuente
+criptográficamente segura), garantiza un carácter de cada clase requerida,
+produce 12 caracteres y excluye deliberadamente los glifos ambiguos —I, O, l, 0,
+1— porque estas contraseñas se dictan o se transcriben a mano. Una prueba
+verifica que todo lo que genera pasa la validación, y otra que no repite valores
+entre altas.
+
+6.5 Cambio de contraseña y recuperación
+
+El cambio de contraseña desde Configuración exige reautenticación con la
+contraseña actual. Firebase lo requiere para updatePassword, pero además cumple
+un propósito de control: impide que alguien cambie la contraseña de una sesión
+ajena que quedó abierta en una terminal del mostrador.
+
+La recuperación se apoya en el envío de enlace de Firebase. Aquí se documentó una
+limitación con honestidad en lugar de disimularla: Firebase solo envía el enlace
+de restablecimiento al correo de la cuenta, de modo que el correo de recuperación
+que cada usuario registra en su perfil no recibe nada por sí solo —queda
+registrado para que el administrador pueda localizar a la persona y devolverle el
+acceso. Entregar el enlace directamente a esa dirección secundaria requeriría un
+backend propio (una Cloud Function con generatePasswordResetLink más un servicio
+de correo), lo que exige el plan Blaze. La limitación está anotada en el README,
+en el código y en la propia pantalla.
+
+6.6 Decisión de diseño: el correo es identidad, no un dato editable
+
+El sistema gestiona contraseñas, nunca identidades. El correo de un usuario no se
+cambia desde la aplicación porque es su identificador en el CRM y de él cuelgan
+las ventas y movimientos que registró. Existe, eso sí, un mecanismo de
+consistencia: si alguien cambia el correo desde la consola de Firebase, al
+siguiente inicio de sesión el perfil de Firestore se alinea automáticamente con
+el correo real de Authentication, para que la aplicación nunca muestre una
+dirección que ya no sirve para iniciar sesión.
+
+6.7 Otras consideraciones de seguridad
+
+  · Ningún secreto en el repositorio. Las claves de configuración de Firebase
+    (apiKey web) son públicas por diseño —identifican el proyecto, no autorizan
+    nada—; la autorización real vive en las Security Rules y en la lista de
+    dominios autorizados de Firebase Auth.
+  · Escapado de salida. El generador de tickets escapa el marcado proveniente de
+    los datos, con una prueba automatizada que lo verifica; un nombre de producto
+    con caracteres HTML no puede inyectar contenido en el documento impreso.
+  · Normalización de entrada. Los correos se normalizan (trim + minúsculas) en
+    todos los puntos de entrada, de modo que no puedan existir dos identidades que
+    difieran solo en mayúsculas.
+  · Aislamiento de sesión entre usuarios. El repositorio de datos se reconstruye
+    al cambiar de usuario, cancelando las suscripciones anteriores.
+  · Traducción de permission-denied. Cuando Firestore rechaza una operación, el
+    mensaje distingue explícitamente el caso de reglas no publicadas, porque un
+    genérico "revisa tu conexión" mandaría a buscar el problema al lado
+    equivocado.
+
+
+--------------------------------------------------------------------------------
+7. CRITERIO 5 — FUNCIONAMIENTO GENERAL, ESTABILIDAD Y COHERENCIA (10%)
+--------------------------------------------------------------------------------
+
+7.1 Coherencia entre interfaz, lógica de negocio y servicios
+
+La articulación entre las tres capas es verificable en el comportamiento
+observable del sistema, no solo en su diagrama:
+
+  · Un cobro en el POS de un teléfono actualiza, en menos de un segundo y sin
+    recargar, el stock en la lista de inventario, las métricas del dashboard, la
+    bitácora de movimientos y el historial de ventas del navegador del
+    administrador. Esa cadena atraviesa interfaz → repositorio → transacción de
+    Firestore → snapshot → repositorio → interfaz, en ambos dispositivos.
+  · Cancelar un folio restaura el stock, genera movimientos de devolución
+    trazables y actualiza las métricas, todo en el mismo acto atómico.
+  · Cambiar el rol de un usuario en Gestión de Usuarios modifica lo que esa
+    persona puede hacer tanto en su menú como en el servidor, porque ambas capas
+    leen del mismo documento.
+  · Descontinuar un producto lo retira del POS, del alta de movimientos y de las
+    alertas de stock, pero lo conserva para poder devolverle existencias si se
+    cancela una venta antigua.
+
+7.2 Ausencia de fallas críticas
+
+Los modos de fallo que un sistema transaccional debe descartar están cubiertos:
+
+  · Sobreventa: imposible. La validación de existencias y el descuento ocurren
+    dentro de la misma transacción, con reintento automático de Firestore ante
+    conflicto de escritura concurrente.
+  · Inconsistencia parcial: imposible. Una venta se escribe completa —descuentos,
+    movimientos, contador y folio— o no se escribe nada.
+  · Referencias rotas: prevenidas por la baja lógica de productos con historial y
+    por el bloqueo de eliminación de categorías en uso.
+  · Pérdida de sesión al recargar: resuelta con persistencia LOCAL más estado de
+    carga inicial.
+  · Caché obsoleta tras un despliegue: resuelta con el versionado de
+    CACHE_VERSION por commit, verificado en el pipeline.
+  · Cuentas huérfanas: la creación de usuario revierte la cuenta de Auth si falla
+    la escritura del perfil.
+  · Métricas silenciosamente incompletas: resuelto con ventanas por fecha y
+    protegido por pruebas.
+  · Cuando una operación no puede completarse (típicamente por falta de red), el
+    sistema lo comunica con un mensaje que explica la causa en términos de
+    negocio, en lugar de fallar en silencio o exponer un código de error.
+
+7.3 Verificación
+
+  · 49 pruebas automatizadas (39 unitarias, 10 de widget) ejecutadas en cada push
+    a main antes de cualquier despliegue.
+  · Análisis estático con flutter_lints, también bloqueante en el pipeline.
+  · Pruebas manuales de recorrido completo con las dos cuentas de rol, en
+    navegador de escritorio, en móvil y en la PWA instalada, incluyendo pruebas
+    de sincronización simultánea entre dos dispositivos.
+  · Verificación específica del modo sin conexión contra la tabla de alcance
+    documentada en el README.
+
+7.4 Credenciales de demostración
+
+  Rol             Correo                      Contraseña
+  ────────────────────────────────────────────────────────
+  Administrador   admin@auravitae.com         AuraAdmin2026!
+  Operador        operador@auravitae.com      AuraOper2026!
+
+El rol se detecta automáticamente al iniciar sesión leyendo users/{uid} en
+Firestore y determina el menú, las acciones disponibles y los permisos de
+escritura.
+
+
+--------------------------------------------------------------------------------
+8. GESTIÓN DEL PROYECTO Y TRABAJO EN EQUIPO
+--------------------------------------------------------------------------------
+
+El equipo trabajó con un flujo de trabajo basado en Git que refleja práctica
+profesional y no entrega monolítica:
+
+  · Una rama por integrante (Fernando, Pame, Said) más la rama principal main.
+  · Integración exclusivamente por Pull Request: 69 PRs a lo largo del proyecto,
+    con revisión de código entre pares antes de fusionar. El historial conserva
+    commits explícitos de revisión ("review del commit #69, improvements en
+    inventario").
+  · 150 commits con mensajes descriptivos y, en los cambios sustantivos, con
+    prefijo semántico (feat, fix, build) que identifica la naturaleza del cambio.
+  · main protegida por el pipeline: nada llega a producción sin pasar análisis y
+    pruebas.
+  · Los commits de despliegue quedan claramente marcados como automatizados y
+    atribuidos a github-actions[bot], de modo que el historial humano se
+    distingue del generado.
+
+La división del trabajo se organizó por módulos —autenticación y perfiles,
+usuarios e historial, inventario y ventas, plataforma y despliegue— con revisión
+cruzada, lo que explica que las convenciones de código y el sistema de diseño se
+mantengan consistentes a lo largo de las 10,500 líneas del proyecto.
+
+
+--------------------------------------------------------------------------------
+9. LIMITACIONES CONOCIDAS Y EVOLUCIÓN PREVISTA
+--------------------------------------------------------------------------------
+
+Se documentan con transparencia, porque conocer los límites de un sistema es
+parte de entregarlo:
+
+  · Las escrituras transaccionales (cobro, movimiento, cancelación) requieren
+    conexión. Es una decisión de integridad, no una carencia: encolarlas offline
+    permitiría vender existencias ya vendidas por otro dispositivo.
+  · El enlace de restablecimiento de contraseña solo llega al correo de la cuenta.
+    Entregarlo al correo de recuperación exigiría una Cloud Function y, por tanto,
+    el plan Blaze.
+  · Las fotos del catálogo son assets empaquetados; no hay carga de imágenes desde
+    la aplicación. La causa es la restricción de Cloud Storage en el plan gratuito
+    Spark, que obliga a migrar a Blaze para habilitar el bucket. El campo imageUrl
+    deja preparada la migración a Firebase Storage en cuanto el negocio disponga
+    de un plan con facturación.
+  · La derivación de la foto a partir del nombre del producto se rompe si el
+    producto se renombra; el campo imageUrl explícito es la vía de escape.
+  · Las ventanas de datos (12 meses de ventas, 90 días de movimientos) acotan lo
+    que se sincroniza al dispositivo. Consultas históricas más profundas
+    requerirían paginación bajo demanda.
+  · Los datos del negocio en el ticket (nombre y lema) son constantes en código;
+    una colección de configuración los volvería editables.
+
+Evolución natural del producto: colección de configuración del negocio, reportes
+exportables a CSV/PDF, gestión de proveedores y órdenes de compra, múltiples
+sucursales con inventario por ubicación, lectura de código de barras con la cámara
+del dispositivo, y Cloud Functions para lógica de servidor (restablecimiento a
+correo secundario, reportes programados, respaldos).
+
+
+--------------------------------------------------------------------------------
+10. CONCLUSIÓN
+--------------------------------------------------------------------------------
+
+AURA VITAE · PyME-Sync cumple el objetivo del proyecto final en sus cinco
+dimensiones evaluables y lo hace desde un mismo hilo conductor: cada decisión
+técnica está justificada por un requisito de negocio, y cada requisito de negocio
+tiene una implementación verificable.
+
+La planificación partió de dos recorridos de usuario reales y de un prototipo
+previo, y se materializó en una navegación coherente, un sistema de diseño
+centralizado y una interfaz responsive que reorganiza su estructura —no solo sus
+márgenes— entre teléfono, tableta y escritorio.
+
+El desarrollo en Flutter entrega una sola base de código de ~10,500 líneas,
+organizada en capas con un contrato de datos que aísla la interfaz del backend,
+con formularios validados, catálogos operativos, punto de venta funcional y
+utilidades desacopladas de la plataforma para poder probarse.
+
+La integración con Firebase no se limita a leer y escribir documentos:
+autenticación con gestión completa del ciclo de vida de las cuentas,
+sincronización reactiva en tiempo real entre dispositivos, transacciones atómicas
+que garantizan la integridad del inventario, persistencia local con un alcance
+offline documentado con precisión, y una matriz RBAC ejecutada en el servidor
+mediante Security Rules versionadas en el repositorio.
+
+El despliegue está automatizado de extremo a extremo y es, además, un control de
+calidad: ningún cambio se publica sin pasar análisis estático y 49 pruebas, la
+compilación web usa WebAssembly, la caché del service worker se versiona por
+commit y el resultado vive en una URL pública y estable como PWA instalable.
+
+Y el sistema funciona de forma coherente: la venta que un operador cobra en un
+teléfono modifica, en el mismo segundo y de forma atómica, el inventario que el
+administrador está viendo en su navegador —que es, exactamente, el problema que
+el proyecto se propuso resolver.
+
+================================================================================

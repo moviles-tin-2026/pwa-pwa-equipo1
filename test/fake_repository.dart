@@ -26,6 +26,9 @@ class FakeRepository extends InventoryRepository {
   void seedSales(List<Sale> sales) => salesCache.addAll(sales);
   void seedMovements(List<StockMovement> movements) =>
       movementsCache.addAll(movements);
+  void seedCategories(List<Category> categories) =>
+      categoriesCache.addAll(categories);
+  void seedUsers(List<AppUser> users) => usersCache.addAll(users);
 
   @override
   Future<void> addCategory(String name, String description) async =>

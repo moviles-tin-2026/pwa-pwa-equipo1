@@ -327,7 +327,12 @@ class _PosScreenState extends State<PosScreen> {
                 maxCrossAxisExtent: isMobile ? 200 : 220,
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                mainAxisExtent: 216,
+                // 130 px son fijos (margen de la Card, foto y padding);
+                // los 86 del bloque de texto sí crecen con el ajuste de
+                // tamaño de letra del sistema. Con un alto fijo, quien
+                // usa texto grande veía el precio cortado por abajo.
+                mainAxisExtent:
+                    130 + MediaQuery.textScalerOf(context).scale(86),
               ),
               itemCount: products.length,
               itemBuilder: (context, index) {
@@ -721,8 +726,13 @@ class _PosProductCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
+                      // Una línea cada uno: la tarjeta mide poco más de
+                      // 100 px de ancho en un móvil chico, y al partirse
+                      // en dos líneas el texto se salía por abajo.
                       Text(
                         formatCurrency(product.salePrice),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
@@ -730,7 +740,9 @@ class _PosProductCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        disabled ? 'Sin stock disponible' : 'Disp: $available',
+                        disabled ? 'Sin stock' : 'Disp: $available',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           color: disabled
