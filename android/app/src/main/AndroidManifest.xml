@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Firebase Auth y Firestore hablan por red en TODAS las variantes.
+         Las plantillas de Flutter solo declaran INTERNET en `src/debug` y
+         `src/profile`, así que sin esta línea el APK de release instala
+         bien pero el login falla con un error de red imposible de
+         diagnosticar desde la app. Va aquí, en `main`, para que quede en
+         la variante que se entrega. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="login_app"
+        android:label="Aura Vitae"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
