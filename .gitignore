@@ -46,3 +46,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Carpeta local donde se deja el APK listo para subir a Classroom. El
+# binario pesa ~55 MB y no tiene por qué versionarse: se regenera con
+# `flutter build apk --release`.
+/entrega/
