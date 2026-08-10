@@ -32,6 +32,16 @@ class AuthService extends ChangeNotifier {
   bool _loading = true;
   StreamSubscription<User?>? _authStateSubscription;
 
+  /// Id del documento en `sessions/` de la conexión actual, o `null` si no
+  /// hay ninguna abierta.
+  String? _activeSessionId;
+  Timer? _heartbeatTimer;
+
+  /// Cada cuánto se refresca `lastSeenAt` mientras la app sigue abierta.
+  /// Acota el error de "horas conectadas" si alguien cierra la pestaña sin
+  /// cerrar sesión: como máximo se cuentan de más estos minutos.
+  static const Duration _heartbeatInterval = Duration(minutes: 3);
+
   AppUser? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
@@ -80,6 +90,10 @@ class AuthService extends ChangeNotifier {
 
   Future<void> _handleAuthState(User? firebaseUser) async {
     if (firebaseUser == null) {
+      // Cubre el cierre de sesión desde otra pestaña o un token revocado:
+      // signOut() ya cierra la sesión por su cuenta, así que esto es un
+      // no-op cuando pasa por ahí (`_activeSessionId` ya es null).
+      await _endSession();
       _currentUser = null;
       _loading = false;
       notifyListeners();
@@ -96,19 +110,81 @@ class AuthService extends ChangeNotifier {
 
       if (!profile.active) {
         await FirebaseAuth.instance.signOut();
+        await _endSession();
         _currentUser = null;
       } else {
         _currentUser = await _syncAccountEmail(profile, email);
+        await _startSession(_currentUser!);
       }
     } catch (_) {
       try {
         await FirebaseAuth.instance.signOut();
       } catch (_) {}
+      await _endSession();
       _currentUser = null;
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  // ---------------- Horas de conexión ----------------
+  //
+  // `AuthService` escribe directo en `sessions/` (igual que ya hace con
+  // `users/{uid}` en altas y sincronización de correo) en vez de pasar por
+  // `InventoryRepository`: ese repositorio solo existe DESPUÉS de haber
+  // iniciado sesión (lo crea `AuthGate` una vez que hay `currentUser`), así
+  // que no está disponible en el momento exacto en que hay que abrir la
+  // sesión. `InventoryRepository` sí la lee, para mostrarla en Usuarios.
+
+  /// Abre una sesión y arranca el heartbeat. Nunca lanza: sin esto no hay
+  /// horas de conexión, pero el login no debe fallar por un problema de
+  /// tracking secundario.
+  Future<void> _startSession(AppUser user) async {
+    try {
+      final now = DateTime.now();
+      final ref = await FirebaseFirestore.instance.collection('sessions').add(
+        UserSession(
+          id: '',
+          userId: user.id,
+          userName: user.name,
+          startedAt: now,
+          lastSeenAt: now,
+        ).toMap(),
+      );
+      _activeSessionId = ref.id;
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = Timer.periodic(
+        _heartbeatInterval,
+        (_) => _heartbeat(),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _heartbeat() async {
+    final sessionId = _activeSessionId;
+    if (sessionId == null) return;
+    try {
+      await FirebaseFirestore.instance.collection('sessions').doc(sessionId).update({
+        'lastSeenAt': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (_) {}
+  }
+
+  /// Cierra la sesión activa (si hay una) y para el heartbeat.
+  Future<void> _endSession() async {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    final sessionId = _activeSessionId;
+    _activeSessionId = null;
+    if (sessionId == null) return;
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await FirebaseFirestore.instance.collection('sessions').doc(sessionId).update({
+        'endedAt': now,
+        'lastSeenAt': now,
+      });
+    } catch (_) {}
   }
 
   /// Alinea `users/{uid}.email` con el correo real de Firebase Auth.
@@ -137,6 +213,7 @@ class AuthService extends ChangeNotifier {
   @override
   void dispose() {
     _authStateSubscription?.cancel();
+    _heartbeatTimer?.cancel();
     super.dispose();
   }
 
@@ -159,6 +236,7 @@ class AuthService extends ChangeNotifier {
       }
 
       _currentUser = profile;
+      await _startSession(profile);
       notifyListeners();
       return _currentUser!;
     } on FirebaseAuthException catch (e) {
@@ -461,6 +539,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _ensureReady();
+    await _endSession();
     await FirebaseAuth.instance.signOut();
     _currentUser = null;
     notifyListeners();

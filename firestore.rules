@@ -94,5 +94,22 @@ service cloud.firestore {
       // Contador de folios: lo actualiza la transacción de venta.
       allow read, write: if signedIn();
     }
+
+    match /sessions/{sessionId} {
+      // Cualquier usuario firmado lee todas: el admin necesita ver las
+      // horas conectadas del equipo completo en Usuarios, igual que ya
+      // puede leer todos los movimientos y ventas.
+      allow read: if signedIn();
+      // Cada quien solo abre y actualiza SU propia sesión (AuthService al
+      // iniciar/cerrar sesión y en el heartbeat periódico), y solo puede
+      // tocar los campos de seguimiento — nunca reescribir a quién
+      // pertenece la sesión.
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastSeenAt', 'endedAt']);
+      allow delete: if false;
+    }
   }
 }

@@ -96,7 +96,12 @@ class _FakeRepository extends InventoryRepository {
       throw UnimplementedError();
 
   @override
-  Future<void> deleteProduct(String id) async => throw UnimplementedError();
+  Future<ProductDeletionOutcome> deleteProduct(String id) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> setProductActive(String id, bool active) async =>
+      throw UnimplementedError();
 
   @override
   Future<String?> registerMovement({
@@ -117,7 +122,10 @@ class _FakeRepository extends InventoryRepository {
       throw UnimplementedError();
 
   @override
-  Future<String?> cancelSale(String saleId, {required String userName}) async =>
+  Future<SaleCancellation> cancelSale(
+    String saleId, {
+    required String userName,
+  }) async =>
       throw UnimplementedError();
 
   @override

@@ -51,6 +51,150 @@ List<UserActivityEntry> userActivityHistory({
   return entries.take(limit).toList();
 }
 
+/// Métricas de desempeño operativo de [userName], calculadas de las ventas
+/// y movimientos reales que ya existen en Firestore (nunca datos
+/// inventados). Las ventas canceladas no cuentan como desempeño: no
+/// generaron ingreso real.
+typedef UserPerformance = ({
+  int saleCount,
+  double revenue,
+  double averageTicket,
+  int movementCount,
+  int cancelledCount,
+  double? cancellationRate,
+});
+
+UserPerformance userPerformance({
+  required List<Sale> sales,
+  required List<StockMovement> movements,
+  required String userName,
+}) {
+  final ownSales = sales.where((s) => s.userName == userName).toList();
+  final activeSales = ownSales.where((s) => !s.cancelled).toList();
+  final cancelledCount = ownSales.length - activeSales.length;
+
+  final saleCount = activeSales.length;
+  final revenue = activeSales.fold<double>(0, (sum, s) => sum + s.total);
+
+  // Ajustes manuales de inventario (entradas/salidas fuera de una venta o
+  // una cancelación): reflejan trabajo de bodega, no de caja.
+  final movementCount = movements
+      .where(
+        (m) =>
+            m.userName == userName &&
+            !m.reason.startsWith('Venta: ') &&
+            !m.reason.startsWith('Devolución por cancelación:'),
+      )
+      .length;
+
+  return (
+    saleCount: saleCount,
+    revenue: revenue,
+    averageTicket: saleCount == 0 ? 0 : revenue / saleCount,
+    movementCount: movementCount,
+    cancelledCount: cancelledCount,
+    // `null` cuando nunca hizo una venta: no hay tasa que calcular, y 0%
+    // se leería como "nunca cancela" en vez de "no aplica".
+    cancellationRate:
+        ownSales.isEmpty ? null : cancelledCount / ownSales.length,
+  );
+}
+
+// ---- Semáforo de actividad reciente ----
+
+/// Qué tan reciente fue la última actividad de un usuario. La UI le pone
+/// color: verde/amarillo/naranja/rojo.
+enum ActivityStatus { today, thisWeek, thisMonth, stale }
+
+/// Fecha de la venta o el movimiento más reciente de [userName], o `null`
+/// si nunca registró ninguno.
+DateTime? lastActivityAt({
+  required List<Sale> sales,
+  required List<StockMovement> movements,
+  required String userName,
+}) {
+  DateTime? latest;
+  for (final sale in sales.where((s) => s.userName == userName)) {
+    if (latest == null || sale.date.isAfter(latest)) latest = sale.date;
+  }
+  for (final movement in movements.where((m) => m.userName == userName)) {
+    if (latest == null || movement.date.isAfter(latest)) latest = movement.date;
+  }
+  return latest;
+}
+
+/// Clasifica [lastActivity] en un balde de recencia. `null` (nunca tuvo
+/// actividad) cae en [ActivityStatus.stale].
+ActivityStatus activityStatusFor(DateTime? lastActivity, {DateTime? now}) {
+  if (lastActivity == null) return ActivityStatus.stale;
+  final today = now ?? DateTime.now();
+  final lastDay = DateTime(
+    lastActivity.year,
+    lastActivity.month,
+    lastActivity.day,
+  );
+  final todayDay = DateTime(today.year, today.month, today.day);
+  // <= 0 cubre "hoy" y cualquier reloj ligeramente adelantado del cliente.
+  final days = todayDay.difference(lastDay).inDays;
+  if (days <= 0) return ActivityStatus.today;
+  if (days <= 7) return ActivityStatus.thisWeek;
+  if (days <= 30) return ActivityStatus.thisMonth;
+  return ActivityStatus.stale;
+}
+
+// ---- Medidor de meta de ventas ----
+
+/// Avance de [userName] hacia su meta de ventas del mes en curso.
+///
+/// `ratio` es `null` cuando `goal <= 0` (sin meta definida): el medidor
+/// debe mostrar "Sin meta" en vez de leerse como 0%.
+typedef GoalProgress = ({double revenue, double goal, double? ratio});
+
+GoalProgress monthlySalesGoalProgress({
+  required List<Sale> sales,
+  required String userName,
+  required double goal,
+  DateTime? now,
+}) {
+  final today = now ?? DateTime.now();
+  final revenue = sales
+      .where(
+        (s) =>
+            s.userName == userName &&
+            !s.cancelled &&
+            s.date.year == today.year &&
+            s.date.month == today.month,
+      )
+      .fold<double>(0, (sum, s) => sum + s.total);
+  return (revenue: revenue, goal: goal, ratio: goal <= 0 ? null : revenue / goal);
+}
+
+// ---- Horas de conexión ----
+
+/// Horas conectadas de [userName] desde [since] (o de todo lo sincronizado
+/// si se omite), sumando la duración de cada sesión en `sessions/`.
+///
+/// La duración de una sesión abierta usa `UserSession.effectiveEnd`
+/// (`endedAt`, o el último heartbeat si cerraron la pestaña sin cerrar
+/// sesión), así que nunca cuenta como "conectado" desde que abrió hasta
+/// ahora mismo.
+double connectedHours({
+  required List<UserSession> sessions,
+  required String userName,
+  DateTime? since,
+}) {
+  final ownSessions = sessions.where(
+    (s) =>
+        s.userName == userName &&
+        (since == null || s.startedAt.isAfter(since)),
+  );
+  final totalMinutes = ownSessions.fold<int>(
+    0,
+    (sum, s) => sum + s.duration.inMinutes,
+  );
+  return totalMinutes / 60;
+}
+
 // ---- Contraseña de las altas de usuario ----
 //
 // Los requisitos son los que aplica Firebase Auth en este proyecto y los

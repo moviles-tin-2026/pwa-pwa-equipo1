@@ -56,11 +56,37 @@ class _UsersScreenState extends State<UsersScreen> {
       movements: repo.movements,
       userName: user.name,
     );
+    final perf = userPerformance(
+      sales: repo.sales,
+      movements: repo.movements,
+      userName: user.name,
+    );
+    final activityStatus = activityStatusFor(
+      lastActivityAt(
+        sales: repo.sales,
+        movements: repo.movements,
+        userName: user.name,
+      ),
+    );
+    final goalProgress = monthlySalesGoalProgress(
+      sales: repo.sales,
+      userName: user.name,
+      goal: user.monthlyGoal,
+    );
+    final hoursThisWeek = connectedHours(
+      sessions: repo.sessions,
+      userName: user.name,
+      since: DateTime.now().subtract(const Duration(days: 7)),
+    );
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(user.name),
+        // El gauge de meta y las estadísticas nuevas hicieron el contenido
+        // más alto de lo que cabe en pantallas bajas; scrollable: true deja
+        // que el diálogo completo se desplace en vez de desbordar.
+        scrollable: true,
         content: SizedBox(
           width: 420,
           child: Column(
@@ -110,18 +136,87 @@ class _UsersScreenState extends State<UsersScreen> {
                           ),
                         ],
                         const SizedBox(height: 6),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             RoleBadge(role: user.role),
-                            const SizedBox(width: 8),
                             if (user.active)
                               const Chip(label: Text('Activo'))
                             else
                               const Chip(label: Text('Inactivo')),
+                            _ActivityBadge(status: activityStatus),
                           ],
                         ),
                       ],
                     ),
+                  ),
+                ],
+              ),
+              const Divider(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Desempeño · últimos '
+                          '${InventoryRepository.salesWindowMonths} meses',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _PerfStat(
+                              label: 'Ventas',
+                              value: '${perf.saleCount}',
+                            ),
+                            _PerfStat(
+                              label: 'Ingresos',
+                              value: formatCurrency(perf.revenue),
+                            ),
+                            _PerfStat(
+                              label: 'Ticket prom.',
+                              value: formatCurrency(perf.averageTicket),
+                            ),
+                            _PerfStat(
+                              label: 'Movimientos',
+                              value: '${perf.movementCount}',
+                            ),
+                            _PerfStat(
+                              label: 'Cancelaciones',
+                              value: perf.cancellationRate == null
+                                  ? '—'
+                                  : '${perf.cancelledCount} '
+                                      '(${(perf.cancellationRate! * 100).round()}%)',
+                            ),
+                            _PerfStat(
+                              label: 'Conectado (7 días)',
+                              value: '${hoursThisWeek.toStringAsFixed(1)} h',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    children: [
+                      _GoalGauge(progress: goalProgress),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Meta del mes',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -436,6 +531,211 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 }
 
+/// Etiqueta, color e ícono para cada balde de [ActivityStatus].
+({String label, Color color}) _activityVisual(ActivityStatus status) =>
+    switch (status) {
+      ActivityStatus.today => (label: 'Activo hoy', color: AppTheme.success),
+      ActivityStatus.thisWeek => (
+        label: 'Activo esta semana',
+        color: AppTheme.brandBlue,
+      ),
+      ActivityStatus.thisMonth => (
+        label: 'Activo este mes',
+        color: AppTheme.warning,
+      ),
+      ActivityStatus.stale => (
+        label: 'Sin actividad reciente',
+        color: AppTheme.danger,
+      ),
+    };
+
+/// Color del medidor de meta según qué tan cerca (o lejos) está del 100%.
+/// `null` = sin meta definida, se pinta en gris neutro.
+Color _goalColor(double? ratio) {
+  if (ratio == null) return Colors.grey.shade400;
+  if (ratio >= 1) return AppTheme.success;
+  if (ratio >= 0.7) return AppTheme.brandBlue;
+  if (ratio >= 0.4) return AppTheme.warning;
+  return AppTheme.danger;
+}
+
+String _goalLabel(double? ratio) =>
+    ratio == null ? 'Sin meta' : '${(ratio * 100).round()}%';
+
+/// Semáforo de actividad reciente: punto de color + etiqueta corta, con el
+/// mismo lenguaje visual que los demás badges (Rol, Activo/Inactivo).
+class _ActivityBadge extends StatelessWidget {
+  const _ActivityBadge({required this.status});
+
+  final ActivityStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _activityVisual(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: visual.color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: visual.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            visual.label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: visual.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Barra compacta de avance hacia la meta mensual, para la tarjeta de la
+/// lista (el gauge circular completo se reserva para el detalle).
+class _GoalBar extends StatelessWidget {
+  const _GoalBar({required this.progress});
+
+  final GoalProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _goalColor(progress.ratio);
+    return Row(
+      children: [
+        Text(
+          'Meta: ',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress.ratio == null
+                  ? 0
+                  : progress.ratio!.clamp(0.0, 1.0),
+              minHeight: 7,
+              backgroundColor: AppTheme.almond,
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          _goalLabel(progress.ratio),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Medidor circular de meta mensual — el "gauge" que se ve en el detalle
+/// de cada usuario.
+class _GoalGauge extends StatelessWidget {
+  const _GoalGauge({required this.progress});
+
+  static const double _size = 92;
+
+  final GoalProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = progress.ratio;
+    final color = _goalColor(ratio);
+    final clamped = ratio == null ? 1.0 : ratio.clamp(0.0, 1.0);
+
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: clamped,
+              strokeWidth: 9,
+              strokeCap: StrokeCap.round,
+              backgroundColor: AppTheme.almond,
+              valueColor: AlwaysStoppedAnimation(
+                ratio == null ? Colors.grey.shade300 : color,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(
+              _goalLabel(ratio),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Montserrat',
+                fontWeight: FontWeight.w800,
+                fontSize: ratio == null ? 12 : 16,
+                color: AppTheme.cocoa,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Estadística compacta del desempeño de un usuario, usada en el diálogo
+/// de detalle.
+class _PerfStat extends StatelessWidget {
+  const _PerfStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.almond,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'Montserrat',
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: AppTheme.cocoa,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.title,
@@ -509,6 +809,18 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = context.read<InventoryRepository>();
+    final activityStatus = activityStatusFor(
+      lastActivityAt(
+        sales: repo.sales,
+        movements: repo.movements,
+        userName: user.name,
+      ),
+    );
+    final goalProgress = monthlySalesGoalProgress(
+      sales: repo.sales,
+      userName: user.name,
+      goal: user.monthlyGoal,
+    );
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -622,6 +934,7 @@ class _UserTile extends StatelessWidget {
             runSpacing: 8,
             children: [
               RoleBadge(role: user.role),
+              _ActivityBadge(status: activityStatus),
               if (!user.active)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -662,6 +975,8 @@ class _UserTile extends StatelessWidget {
                 ),
             ],
           ),
+          const SizedBox(height: 10),
+          _GoalBar(progress: goalProgress),
         ],
       ),
     );
@@ -710,6 +1025,11 @@ void _showUserForm(BuildContext context, {AppUser? user}) {
   final emailController = TextEditingController(text: user?.email ?? '');
   final passwordController =
       TextEditingController(text: user == null ? generateTemporaryPassword() : '');
+  final goalController = TextEditingController(
+    text: user != null && user.monthlyGoal > 0
+        ? user.monthlyGoal.toStringAsFixed(0)
+        : '',
+  );
   final formKey = GlobalKey<FormState>();
   UserRole role = user?.role ?? UserRole.operator;
   var saving = false;
@@ -728,8 +1048,13 @@ void _showUserForm(BuildContext context, {AppUser? user}) {
           });
 
           if (user != null) {
+            final goal = double.tryParse(goalController.text.trim()) ?? 0;
             await repo.updateUser(
-              user.copyWith(name: nameController.text.trim(), role: role),
+              user.copyWith(
+                name: nameController.text.trim(),
+                role: role,
+                monthlyGoal: goal,
+              ),
             );
             if (!dialogContext.mounted) return;
             Navigator.pop(dialogContext);
@@ -797,6 +1122,31 @@ void _showUserForm(BuildContext context, {AppUser? user}) {
                     return null;
                   },
                 ),
+                if (user != null) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: goalController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Meta de ventas del mes (opcional)',
+                      helperText:
+                          'Alimenta el medidor de desempeño. Vacío = sin meta.',
+                      helperMaxLines: 2,
+                      prefixIcon: Icon(Icons.track_changes_outlined),
+                    ),
+                    validator: (v) {
+                      final text = v?.trim() ?? '';
+                      if (text.isEmpty) return null;
+                      final parsed = double.tryParse(text);
+                      if (parsed == null || parsed < 0) {
+                        return 'Ingresa un monto válido';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
                 if (user == null) ...[
                   const SizedBox(height: 16),
                   TextFormField(

@@ -80,6 +80,8 @@ abstract class InventoryRepository extends ChangeNotifier {
   final List<Sale> salesCache = [];
   @protected
   final List<AppUser> usersCache = [];
+  @protected
+  final List<UserSession> sessionsCache = [];
 
   List<Category> get categories => List.unmodifiable(categoriesCache);
   List<Product> get products => List.unmodifiable(productsCache);
@@ -91,6 +93,11 @@ abstract class InventoryRepository extends ChangeNotifier {
   List<StockMovement> get movements => List.unmodifiable(movementsCache);
   List<Sale> get sales => List.unmodifiable(salesCache);
   List<AppUser> get users => List.unmodifiable(usersCache);
+
+  /// Sesiones de conexión (ver `UserSession`). Las escribe `AuthService`
+  /// directo contra Firestore —igual que el resto del ciclo de vida de
+  /// cuentas—, así que aquí solo se leen para mostrarlas en Usuarios.
+  List<UserSession> get sessions => List.unmodifiable(sessionsCache);
 
   // ---------------- Lecturas auxiliares ----------------
 
@@ -261,20 +268,15 @@ abstract class InventoryRepository extends ChangeNotifier {
   /// registra un movimiento de entrada por cada línea para conservar la
   /// trazabilidad del historial.
   ///
-<<<<<<< HEAD
-  /// Devuelve en `notRestored` las líneas que no se pudieron reponer
-  /// (producto ya no existe en el catálogo) para que la UI lo informe en
-  /// vez de dar por hecho que se restauró todo.
+  /// `error` trae el mensaje si la operación falló por completo (incluye
+  /// detectar la falta de conexión: la cancelación es una transacción y
+  /// sin red no se puede resolver). `notRestored` trae las líneas que sí
+  /// se canceló pero cuyo producto ya no existe en el catálogo, para que
+  /// la UI lo informe en vez de dar por hecho que se restauró todo.
   Future<SaleCancellation> cancelSale(
     String saleId, {
     required String userName,
   });
-=======
-  /// Devuelve un mensaje de error o `null` si tuvo éxito: la cancelación
-  /// es una transacción y sin conexión no se puede resolver, así que la
-  /// UI necesita poder decirlo.
-  Future<String?> cancelSale(String saleId, {required String userName});
->>>>>>> ba5ad00e695b52a7d354e0446ce95919e3f19609
 
   // El alta de usuarios NO vive aquí: crear solo el documento dejaba una
   // cuenta que no podía iniciar sesión, y con id aleatorio en vez del uid

@@ -23,6 +23,7 @@ class AppUser {
     this.active = true,
     this.recoveryEmail = '',
     this.startSection = '',
+    this.monthlyGoal = 0,
   });
 
   final String id;
@@ -47,6 +48,11 @@ class AppUser {
   /// `AppSection`. Vacío = Dashboard.
   final String startSection;
 
+  /// Meta de ventas del mes, en la misma moneda que `Sale.total`. La fija
+  /// el admin desde "Editar usuario"; `0` significa que no tiene meta
+  /// definida (el medidor lo muestra como "Sin meta" en vez de 0%).
+  final double monthlyGoal;
+
   bool get isAdmin => role == UserRole.admin;
 
   AppUser copyWith({
@@ -56,6 +62,7 @@ class AppUser {
     bool? active,
     String? recoveryEmail,
     String? startSection,
+    double? monthlyGoal,
   }) =>
       AppUser(
         id: id,
@@ -65,6 +72,7 @@ class AppUser {
         active: active ?? this.active,
         recoveryEmail: recoveryEmail ?? this.recoveryEmail,
         startSection: startSection ?? this.startSection,
+        monthlyGoal: monthlyGoal ?? this.monthlyGoal,
       );
 
   Map<String, dynamic> toMap() => {
@@ -74,6 +82,7 @@ class AppUser {
         'active': active,
         'recoveryEmail': recoveryEmail,
         'startSection': startSection,
+        'monthlyGoal': monthlyGoal,
       };
 
   factory AppUser.fromMap(String id, Map<String, dynamic> map) => AppUser(
@@ -86,6 +95,7 @@ class AppUser {
         active: (map['active'] ?? true) as bool,
         recoveryEmail: (map['recoveryEmail'] ?? '') as String,
         startSection: (map['startSection'] ?? '') as String,
+        monthlyGoal: ((map['monthlyGoal'] ?? 0) as num).toDouble(),
       );
 }
 
@@ -369,4 +379,70 @@ class Sale {
         ),
         cancelled: (map['cancelled'] ?? false) as bool,
       );
+}
+
+/// Una sesión de conexión, para medir horas conectadas por usuario.
+///
+/// `AuthService` la abre al iniciar sesión y la va refrescando con un
+/// heartbeat periódico mientras la app sigue abierta; `endedAt` solo se
+/// llena si la persona cierra sesión de forma explícita.
+class UserSession {
+  const UserSession({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.startedAt,
+    required this.lastSeenAt,
+    this.endedAt,
+  });
+
+  final String id;
+  final String userId;
+  final String userName;
+  final DateTime startedAt;
+
+  /// Última vez que el heartbeat confirmó que la sesión seguía abierta.
+  final DateTime lastSeenAt;
+
+  /// `null` si la sesión sigue abierta o si se cerró la pestaña sin pasar
+  /// por `signOut()` — Firebase no avisa de eso, así que nunca se llena
+  /// solo. `effectiveEnd` cubre ese caso con `lastSeenAt`.
+  final DateTime? endedAt;
+
+  /// Fin efectivo para calcular duración: `endedAt` si cerró sesión limpio,
+  /// o el último heartbeat si no. Evita que una pestaña cerrada sin
+  /// `signOut()` cuente como "conectado" para siempre.
+  DateTime get effectiveEnd => endedAt ?? lastSeenAt;
+
+  Duration get duration => effectiveEnd.difference(startedAt);
+
+  Map<String, dynamic> toMap() => {
+        'userId': userId,
+        'userName': userName,
+        'startedAt': startedAt.millisecondsSinceEpoch,
+        'lastSeenAt': lastSeenAt.millisecondsSinceEpoch,
+        'endedAt': endedAt?.millisecondsSinceEpoch,
+      };
+
+  factory UserSession.fromMap(String id, Map<String, dynamic> map) {
+    final startedAt = DateTime.fromMillisecondsSinceEpoch(
+      ((map['startedAt'] ?? 0) as num).toInt(),
+    );
+    return UserSession(
+      id: id,
+      userId: (map['userId'] ?? '') as String,
+      userName: (map['userName'] ?? '') as String,
+      startedAt: startedAt,
+      lastSeenAt: map['lastSeenAt'] == null
+          ? startedAt
+          : DateTime.fromMillisecondsSinceEpoch(
+              (map['lastSeenAt'] as num).toInt(),
+            ),
+      endedAt: map['endedAt'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              (map['endedAt'] as num).toInt(),
+            ),
+    );
+  }
 }
